@@ -1,0 +1,59 @@
+# Disposable BookStack instance for testing bookstack-tables-extended.js.
+# For local testing only: the credentials and APP_KEY below are throwaway values.
+#
+#   docker compose up -d                                    # latest release
+#   BOOKSTACK_VERSION=version-v23.05 docker compose up -d   # a specific release
+#   docker compose down -v                                  # stop and wipe all data
+#
+# Open http://localhost:6875 and sign in with admin@admin.com / password.
+services:
+  bookstack:
+    image: lscr.io/linuxserver/bookstack:${BOOKSTACK_VERSION:-latest}
+    container_name: bookstack-tables-extended
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - APP_URL=http://localhost:6875
+      - APP_KEY=base64:w+IUQt7H5rkTc5o38T5I7zHWBCPKLCF+hnGkLXvUtL0=
+      - DB_HOST=bookstack-db
+      - DB_PORT=3306
+      - DB_USERNAME=bookstack
+      - DB_PASSWORD=bookstack-test
+      - DB_DATABASE=bookstackapp
+    volumes:
+      - bookstack-config:/config
+      # The script is served from the web root, so the Custom HTML Head Content
+      # only needs: <script src="/bookstack-tables-extended.js"></script>
+      # Edits to the file apply on the next page load (hard refresh to bypass cache).
+      - ./bookstack-tables-extended.js:/app/www/public/bookstack-tables-extended.js:ro
+    ports:
+      - "6875:80"
+    depends_on:
+      bookstack-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  bookstack-db:
+    image: lscr.io/linuxserver/mariadb:latest
+    container_name: bookstack-tables-extended-db
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - MYSQL_ROOT_PASSWORD=root-test
+      - MYSQL_DATABASE=bookstackapp
+      - MYSQL_USER=bookstack
+      - MYSQL_PASSWORD=bookstack-test
+    volumes:
+      - bookstack-db:/config
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -proot-test --silent || mysqladmin ping -h localhost -uroot -proot-test --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  bookstack-config:
+  bookstack-db:
