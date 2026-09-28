@@ -1,6 +1,6 @@
 # BookStack Tables Extended
 
-A script for [BookStack](https://www.bookstackapp.com) that adds sorting, per-column filtering and horizontal scrolling to the tables on your pages.
+A script for [BookStack](https://www.bookstackapp.com) that adds sorting, Excel-style column filtering and horizontal scrolling to the tables on your pages, and lets editors create tables with more than 10 columns.
 
 > **Disclaimer**
 >
@@ -12,52 +12,52 @@ A script for [BookStack](https://www.bookstackapp.com) that adds sorting, per-co
 
 ## Features
 
+**When viewing a page**
+
 - **Sort by column.** Select a column heading to sort ascending, select it again for descending, and a third time to return to the original order. Headings are also reachable with the keyboard (Tab, then Enter or Space).
-- **Filter by column.** A filter box under each heading shows only rows containing the typed text. The match ignores case, and boxes in several columns combine. A line under the table shows how many rows match, with a link to clear all filters.
+- **Filter by column.** Each heading has a small funnel button. It opens a menu with sort options, a search box and a checklist of the values in that column, like a spreadsheet filter. The search matches text anywhere in a cell and ignores case. Filters in several columns combine. The funnel is highlighted while a filter is active, and a line under the table shows how many rows match, with a link to clear all filters.
 - **Horizontal scroll.** Each column keeps a minimum width (120 px by default). Tables with more columns than fit on screen scroll sideways inside the page instead of squeezing every column.
 - **Understands your data.** Columns of numbers sort numerically, including values like `1,200`, `$5.50` and `12%`. Text sorts alphabetically without regard to case, and `Item 9` sorts before `Item 10`. Empty cells always sort last.
 - **Display only.** Sorting and filtering change what you see in the browser. They never change the saved page, and they reset when the page reloads.
 - **Works on every table automatically.** Every table in viewed page content is enhanced, whether the page was written in the WYSIWYG Editor or the new WYSIWYG. Tables inside other tables are left alone.
 - **Follows your theme.** Colours come from your BookStack theme, so the script works in light and dark mode.
 
+**When editing a page**
+
+- **Tables wider than 10 columns.** BookStack's editors offer a 10 by 10 grid for new tables. With this script, the WYSIWYG Editor asks for the number of columns and rows instead, and the new WYSIWYG gets an extra toolbar button for the same purpose. The largest table that can be created in one step is configurable (50 columns by 200 rows by default). See [Editors](#editors).
+
 ## Supported BookStack versions
 
 This script is tested against the exact BookStack releases below. **Use it only with these releases.** Any other release, including other patch releases of the same version line, is unsupported.
 
-| BookStack release | Pages from the WYSIWYG Editor | Pages from the new WYSIWYG (beta) |
-| ----------------- | ----------------------------- | --------------------------------- |
-| v23.05            | Supported                     | Not available in this release     |
-| v23.12.3          | Supported                     | Not available in this release     |
-| v24.02.3          | Supported                     | Not available in this release     |
-| v24.05.4          | Supported                     | Not available in this release     |
-| v24.10.3          | Supported                     | Supported                         |
-| v24.12.1          | Supported                     | Supported                         |
-| v25.02            | Supported                     | Supported                         |
-| v25.05            | Supported                     | Supported                         |
-| v25.07            | Supported                     | Supported                         |
-| v25.11            | Supported                     | Supported                         |
-| v25.12            | Supported                     | Supported                         |
-| v26.03.5          | Supported                     | Supported                         |
-| v26.05.5          | Supported                     | Supported                         |
-| v26.09            | Supported                     | Supported                         |
+| BookStack release | Viewing pages from either editor | Larger tables in the WYSIWYG Editor | Larger tables in the new WYSIWYG (beta) |
+| ----------------- | -------------------------------- | ----------------------------------- | --------------------------------------- |
+| v23.05            | Supported                        | Supported                           | Not available in this release           |
+| v23.12.3          | Supported                        | Supported                           | Not available in this release           |
+| v24.02.3          | Supported                        | Supported                           | Not available in this release           |
+| v26.09            | Supported                        | Supported                           | Supported                               |
 
-Releases older than v23.05 are unsupported.
+Releases that are not listed are unsupported, including every other release between and after these, and every release older than v23.05.
 
 When a new BookStack release comes out, keep running the version you have listed here until this table lists the new release.
 
 ## Editors
 
-Sorting, filtering and scrolling apply when a page is **viewed**. The script does not run inside the page editor, so editing is unaffected.
+BookStack has two visual editors. Choose the default under **Settings > Customization > Default Page Editor**, or switch a single page with **Switch to new WYSIWYG** while editing it.
 
-BookStack has two visual editors, and the script works with pages saved by either one. Which editor a page uses does not change what you see, with the differences below:
+The script works with pages saved by either editor, and viewing behaves identically. While editing, the script leaves the page content alone. The only change to the editing screen is the table size feature described below.
 
 | | WYSIWYG Editor | new WYSIWYG (beta) |
 | --- | --- | --- |
-| Where to choose it | **Settings > Customization > Default Page Editor**, or per page | Same setting, or **Switch to new WYSIWYG** on a page |
-| Header row | Stored as a separate header section. The script uses the last row of that section as the headings. | Stored as heading cells in the first row of the table. The script uses the first row as the headings. |
+| Available in | All supported releases | v24.10.3 and later |
+| How a header row is stored | A separate header section. The script uses the last row of that section as the headings. | Heading cells in the first row of the table. The script uses the first row as the headings. |
 | Tables without a header row | The first row is used as the headings. | The first row is used as the headings. |
-| Availability | All supported releases | v24.10.3 and later |
-| Appearance and behaviour when viewing | Identical | Identical |
+| Creating a table | **Table > Table** opens a dialog asking for columns and rows. It replaces the 10 by 10 grid. | The built-in 10 by 10 grid stays. A second toolbar button, **Insert table (custom size)**, next to the built-in table button asks for columns and rows. |
+| Size limit when creating | Columns and rows are capped at the configured maximum. | The dialog refuses sizes above the configured maximum. |
+| Requires | Nothing extra | The editor hooks that BookStack provides from v25.12 onwards. |
+| Viewing | Identical | Identical |
+
+Columns and rows can also be added to an existing table at any time with the editor's own insert column and insert row actions. The maximum applies only to creating a table in one step.
 
 Pages written in the Markdown editor are not covered by this project's tests.
 
@@ -81,29 +81,41 @@ To change a default, define `window.BookStackTablesExtended` in a `<script>` tag
     window.BookStackTablesExtended = {
         minColumnWidth: 160,
         filter: false,
+        editor: {
+            maxColumns: 30,
+        },
     };
 </script>
 <script src="/bookstack-tables-extended.js"></script>
 ```
 
-| Option           | Default                            | Description                                                                          |
-| ---------------- | ---------------------------------- | ------------------------------------------------------------------------------------ |
-| `sort`           | `true`                             | Turns column sorting on or off.                                                      |
-| `filter`         | `true`                             | Turns the filter row on or off.                                                      |
-| `scroll`         | `true`                             | Turns horizontal scrolling on or off.                                                |
-| `minColumnWidth` | `120`                              | Minimum column width in pixels before a table scrolls sideways.                      |
-| `minRows`        | `2`                                | Tables with fewer body rows get horizontal scrolling only, without sorting or filtering. |
-| `skipSelector`   | `'.bte-skip, [data-bte="off"]'`    | CSS selector for tables that are left completely alone.                              |
-| `labels`         | English text                       | Text shown in the interface. Keys: `filter`, `clear`, `showing(shown, total)`, `noMatches`. |
+| Option                | Default                         | Description                                                                                  |
+| --------------------- | ------------------------------- | -------------------------------------------------------------------------------------------- |
+| `sort`                | `true`                          | Turns column sorting on or off.                                                              |
+| `filter`              | `true`                          | Turns the column filter buttons on or off.                                                   |
+| `scroll`              | `true`                          | Turns horizontal scrolling on or off.                                                        |
+| `minColumnWidth`      | `120`                           | Minimum column width in pixels before a table scrolls sideways.                              |
+| `minRows`             | `2`                             | Tables with fewer body rows get horizontal scrolling only, without sorting or filtering.     |
+| `maxListValues`       | `200`                           | A column with more distinct values than this shows the search box without the checklist.     |
+| `skipSelector`        | `'.bte-skip, [data-bte="off"]'` | CSS selector for tables that are left completely alone.                                      |
+| `editor.largeTables`  | `true`                          | Turns the larger table support in the editors on or off.                                     |
+| `editor.maxColumns`   | `50`                            | Most columns that can be created in one step.                                                |
+| `editor.maxRows`      | `200`                           | Most rows that can be created in one step.                                                   |
+| `labels`              | English text                    | Text shown in the interface. See the list below.                                             |
 
-Example of translating the interface:
+Set `editor: {largeTables: false}` to leave both editors exactly as BookStack ships them.
+
+The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`, `search`, `selectAll`, `blanks`, `noValues`, `clearFilter`, `clear`, `showing(shown, total)`, `noMatches`, `insertTable`, `columns`, `rows`, `insert` and `cancel`. Any key you leave out keeps its English text. Example of translating part of the interface:
 
 ```html
 <script>
     window.BookStackTablesExtended = {
         labels: {
-            filter: 'Filtern',
-            clear: 'Filter zurücksetzen',
+            sortAscending: 'Aufsteigend sortieren',
+            sortDescending: 'Absteigend sortieren',
+            search: 'Suchen',
+            clearFilter: 'Filter zurücksetzen',
+            clear: 'Alle Filter zurücksetzen',
             showing: (shown, total) => `${shown} von ${total} Zeilen`,
             noMatches: 'Keine passenden Zeilen',
         },
@@ -113,9 +125,11 @@ Example of translating the interface:
 
 ## Turning the script off for a page
 
-Add a tag to the page with the name `tablesextended` and the value `off`. The script leaves every table on that page alone.
+Add a tag to the page with the name `tablesextended` and the value `off`. The script leaves every table on that page alone when the page is viewed.
 
 BookStack removes punctuation from tag names when it builds the page's CSS classes, so the name has no hyphen. A tag named `tablesextendedoff` with no value has the same effect.
+
+The tag does not affect the editing features. Use `editor.largeTables` to turn those off.
 
 ## How tables are read
 
@@ -123,6 +137,7 @@ BookStack removes punctuation from tag names when it builds the page's CSS class
 - **Body rows.** Every other row, except rows in a table footer, can be sorted and filtered.
 - **Numbers.** A column sorts numerically when every non-empty cell in it is a number. Currency symbols (`$ € £ ¥`), `%` and thousands separators (`1,200`) are accepted. A dot is the decimal separator.
 - **Dates.** Dates sort as text, so use the `YYYY-MM-DD` format if a date column needs to sort chronologically.
+- **Filter checklist.** Values are compared as the text shown in the cell. Empty cells appear as **(Blanks)**.
 
 ## Known limitations
 
@@ -131,8 +146,10 @@ BookStack removes punctuation from tag names when it builds the page's CSS class
 - A table without a designated header row uses its first row as the header, so that row cannot be sorted or filtered as data.
 - Numbers written with a decimal comma (`1,5`) are not read as numbers.
 - Sorting and filtering are not saved. They reset when the page is reloaded and do not appear in exports or printouts.
-- Filters match text only. Operators such as `>5` are not interpreted.
+- The filter search matches text only. Operators such as `>5` are not interpreted.
 - Tables that are added to the page after it has loaded are not enhanced.
+- In the WYSIWYG Editor, the table size dialog replaces the 10 by 10 grid for every new table. The grid cannot be kept alongside it.
+- In the new WYSIWYG, the size limit is enforced by the dialog. A table inserted some other way, for example by pasting, is not limited.
 
 ## Testing with Docker
 
@@ -144,7 +161,7 @@ docker compose up -d
 
 1. Open <http://localhost:6875> and sign in with `admin@admin.com` and `password`. The first start takes a minute while the database is prepared.
 2. Go to **Settings > Customization** and set **Custom HTML Head Content** to `<script src="/bookstack-tables-extended.js"></script>`.
-3. Create a page with a table and view it.
+3. Create a page with a table and view it. The file `tables-test.md` contains ready-made Markdown tables to paste into a page.
 
 The container reads `bookstack-tables-extended.js` directly from this folder, so edits apply the next time a page loads (hard-refresh to bypass the browser cache).
 
@@ -162,4 +179,4 @@ docker compose down -v
 
 ## Automated tests
 
-The `test` folder contains browser tests that run the script against each supported BookStack release and save screenshots of the results to `screenshots/<release>/`. See [test/README.md](test/README.md) for how to run them.
+The `test` folder contains browser tests that run the script against each supported BookStack release. See [test/README.md](test/README.md) for how to run them.

@@ -4,7 +4,9 @@ Paste this into a BookStack page written with the **Markdown editor** (or use **
 
 ## 1. Basic text and numbers
 
-Sort every column. Names should ignore case, and `Item 9` should come before `Item 10`. Filter for `ab` in the Name column to see 3 rows.
+Sort every column. Names should ignore case, and `Item 9` should come before `Item 10`.
+
+Select the funnel next to **Name** and type `ab` in the search box. Two rows remain (Kebab and Fabulous), and the checklist narrows to those two names as you type. Clear the search, then untick a few names in the checklist and watch the rows disappear. **(Select all)** shows a mixed state while only some names are ticked. Use **Sort descending** in the same menu, then **Clear filter**.
 
 | Name    | Qty   | Price   | Added      |
 | ------- | ----- | ------- | ---------- |
@@ -19,7 +21,7 @@ Sort every column. Names should ignore case, and `Item 9` should come before `It
 
 ## 2. Percentages and mixed units
 
-The Growth column should sort as numbers (`-3%` lowest, `120%` highest). Empty cells stay at the bottom in both directions.
+The Growth column should sort as numbers (`-3%` lowest, `120%` highest). Empty cells stay at the bottom in both directions. In the funnel menu for Growth, the empty cell appears as **(Blanks)**.
 
 | Region | Growth | Revenue    | Notes          |
 | ------ | ------ | ---------- | -------------- |
@@ -31,7 +33,7 @@ The Growth column should sort as numbers (`-3%` lowest, `120%` highest). Empty c
 
 ## 3. Wide table (horizontal scroll)
 
-This has 14 columns. It should scroll sideways inside the page instead of squeezing the columns, and the page itself should not scroll sideways.
+This has 14 columns. It should scroll sideways inside the page instead of squeezing the columns, and the page itself should not scroll sideways. Scroll to the right and open the funnel on the last column: its menu should stay fully on screen.
 
 | ID | First name | Last name | Department | Role | Location | Start date | Salary | Manager | Team | Status | Phone | Email | Notes |
 | -- | ---------- | --------- | ---------- | ---- | -------- | ---------- | ------ | ------- | ---- | ------ | ----- | ----- | ----- |
@@ -73,6 +75,15 @@ Sort by Team. Rows with the same team should keep their original relative order 
 | Cy     | Red   | 8     |
 | Fay    | Green | 8     |
 
-## 7. Opting a page out
+## 7. Creating wide tables in the editor
+
+Edit any page and create a new table with 15 columns and 3 rows.
+
+- **WYSIWYG Editor:** choose **Table > Table**. A dialog asks for columns and rows. Enter 15 and 3.
+- **new WYSIWYG (v25.12 and later):** use the toolbar button **Insert table (custom size)** (a small table with a plus), next to the built-in table button. Enter 15 and 3.
+
+Asking for more than 50 columns is refused or capped at 50. The limit is configurable with `editor.maxColumns`.
+
+## 8. Opting a page out
 
 To confirm the opt-out works, add the page tag name `tablesextended` with the value `off` to any page containing these tables. Every table on that page should then look and behave like a normal BookStack table.
