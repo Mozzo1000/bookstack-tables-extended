@@ -4,7 +4,7 @@
  * Viewing a page: adds column sorting, Excel-style column filters and horizontal scrolling to
  * tables. Display-only: saved page content is never modified.
  * Editing a page: lets the editor create tables with more than 10 columns (configurable) and change the
- * number of columns and rows of an existing table from its properties dialog (WYSIWYG Editor).
+ * number of columns and rows of an existing table from its properties dialog (both editors).
  *
  * Install: Settings > Customization > Custom HTML Head Content
  *   <script src="/bookstack-tables-extended.js"></script>
@@ -64,6 +64,9 @@
             insertTable: 'Insert table (custom size)',
             advanced: 'Advanced…',
             removeContent: 'Making the table smaller removes cells that contain content. Continue?',
+            yes: 'Yes',
+            no: 'No',
+            updating: 'Updating table…',
             columns: 'Columns',
             rows: 'Rows',
             insert: 'Insert',
@@ -124,12 +127,12 @@
 .bte-list .bte-count { opacity: .6; font-size: .85em; }
 .bte-empty { padding: 4px 6px; opacity: .7; }
 /* TinyMCE's skin resets buttons with a more specific selector, so this one is qualified with .tox. */
-.tox button.bte-advanced {
+.bte-advanced, .tox button.bte-advanced {
     display: block; box-sizing: border-box; width: 100%; margin: 6px 0 0; padding: 7px 8px;
     font: inherit; font-size: 14px; text-align: center; color: inherit; background: none;
     border: 0; border-top: 1px solid rgba(128, 128, 128, .4); cursor: pointer;
 }
-.tox button.bte-advanced:hover, .tox button.bte-advanced:focus-visible { background: rgba(128, 128, 128, .22); outline: none; }
+.bte-advanced:hover, .bte-advanced:focus-visible, .tox button.bte-advanced:hover, .tox button.bte-advanced:focus-visible { background: rgba(128, 128, 128, .22); outline: none; }
 .bte-modal-backdrop { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .4); }
 .bte-modal { width: 280px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .bte-modal label { display: flex; flex-direction: column; gap: 3px; }
@@ -794,6 +797,190 @@
         columns.select();
     }
 
+    /** Translate an English editor label the same way BookStack's own editor does. */
+    const editorText = text => (window.editor_translations && window.editor_translations[text]) || text;
+
+    /** A small yes/no dialog in the same style as the size dialog. Resolves true for Yes. */
+    function confirmDialog(message) {
+        injectStyles();
+        return new Promise(resolve => {
+            const yes = el('button', {type: 'submit', className: 'bte-primary', textContent: config.labels.yes});
+            const no = el('button', {type: 'button', textContent: config.labels.no});
+            const form = el('form', {className: 'bte-modal'}, [
+                el('span', {textContent: message}),
+                el('div', {className: 'bte-actions'}, [no, yes]),
+            ]);
+            form.setAttribute('role', 'alertdialog');
+            const backdrop = el('div', {className: 'bte-modal-backdrop'}, [form]);
+            document.body.appendChild(backdrop);
+            applySurface(form, document.body);
+            const done = value => { backdrop.remove(); resolve(value); };
+            no.addEventListener('click', () => done(false));
+            form.addEventListener('submit', event => { event.preventDefault(); done(true); });
+            form.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); done(false); } });
+            backdrop.addEventListener('mousedown', event => { if (event.target === backdrop) done(false); });
+            yes.focus();
+        });
+    }
+
+    /** Covers the page and swallows key presses while a script-driven change is running. */
+    function showBusy(message) {
+        injectStyles();
+        const card = el('div', {className: 'bte-modal', textContent: message});
+        const backdrop = el('div', {className: 'bte-modal-backdrop bte-busy'}, [card]);
+        backdrop.setAttribute('role', 'status');
+        backdrop.setAttribute('aria-busy', 'true');
+        const block = event => { event.preventDefault(); event.stopPropagation(); };
+        document.body.appendChild(backdrop);
+        applySurface(card, document.body);
+        document.addEventListener('keydown', block, true);
+        return {
+            remove() {
+                document.removeEventListener('keydown', block, true);
+                backdrop.remove();
+            },
+        };
+    }
+
+    const LEXICAL_ROOT = '[component="wysiwyg-editor"] [contenteditable]';
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    /**
+     * The new editor has no public API for table structure, so an existing table is resized by moving the
+     * selection into a cell and pressing the editor's own row and column buttons, as a user would.
+     */
+    async function resizeLexicalTable(table, cols, rows) {
+        if (!table.isConnected) return;
+        const root = table.closest('[contenteditable]');
+        const selectCell = async cell => {
+            root.focus();
+            const range = document.createRange();
+            range.selectNodeContents(cell.querySelector('p, span') || cell);
+            range.collapse(true);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            document.dispatchEvent(new Event('selectionchange'));
+            await sleep(80);
+        };
+        const press = async (label, cell) => {
+            await selectCell(cell);
+            const title = editorText(label);
+            const button = Array.from(document.querySelectorAll('button[title]')).find(b => b.title === title && !b.disabled);
+            if (!button) return false;
+            button.click();
+            await sleep(100);
+            return true;
+        };
+        const lastCell = () => table.rows[0].cells[table.rows[0].cells.length - 1];
+        const lastRowStart = () => table.rows[table.rows.length - 1].cells[0];
+
+        if ((cols < tableColumnCount(table) || rows < table.rows.length) && resizeRemovesContent(table, cols, rows)) {
+            if (!(await confirmDialog(config.labels.removeContent))) return;
+        }
+        const busy = showBusy(config.labels.updating);
+        try {
+            let guard = 0;
+            while (table.isConnected && tableColumnCount(table) < cols && guard++ < 1000) {
+                if (!(await press('Insert column after', lastCell()))) return;
+            }
+            while (table.isConnected && tableColumnCount(table) > cols && table.rows[0].cells.length > 1 && guard++ < 1000) {
+                if (!(await press('Delete column', lastCell()))) return;
+            }
+            while (table.isConnected && table.rows.length < rows && guard++ < 1000) {
+                if (!(await press('Insert row after', lastRowStart()))) return;
+            }
+            while (table.isConnected && table.rows.length > rows && table.rows.length > 1 && guard++ < 1000) {
+                if (!(await press('Delete row', lastRowStart()))) return;
+            }
+            if (table.isConnected) await selectCell(table.rows[0].cells[0]);
+        } finally {
+            busy.remove();
+        }
+    }
+
+    /** The table that holds the editor's current selection, if any. */
+    function lexicalTableAtSelection() {
+        const selection = window.getSelection();
+        const node = selection && selection.anchorNode;
+        const element = node && (node.nodeType === 1 ? node : node.parentElement);
+        return element ? element.closest(LEXICAL_ROOT + ' table') : null;
+    }
+
+    /** Add Cols and Rows to the properties modal of an existing table. */
+    function extendLexicalTableModal(modal, table) {
+        const panel = modal.querySelector('.editor-form-tab-content');
+        const form = modal.querySelector('form');
+        if (!panel || !form || !table || panel.dataset.bteRows) return;
+        // The table properties form has a "cell_spacing" field; the cell and row forms do not.
+        if (!panel.querySelector('input[name="cell_spacing"]')) return;
+        panel.dataset.bteRows = '1';
+
+        const field = (name, label, value) => {
+            const id = 'editor-form-field-' + name + '-' + Date.now();
+            const input = el('input', {id, name, className: 'editor-form-field-input', value: String(value)});
+            input.setAttribute('inputmode', 'numeric');
+            const wrapper = el('div', {className: 'editor-form-field-wrapper'}, [
+                el('label', {className: 'editor-form-field-label', htmlFor: id, textContent: editorText(label)}),
+                input,
+            ]);
+            return {wrapper, input};
+        };
+        const cols = field('bte_cols', 'Cols', tableColumnCount(table));
+        const rows = field('bte_rows', 'Rows', table.rows.length);
+        panel.prepend(cols.wrapper, rows.wrapper);
+
+        // Capture phase, so the values are read before the modal closes. Resize once the editor has applied
+        // its own property changes.
+        form.addEventListener('submit', () => {
+            const c = parseInt(cols.input.value, 10);
+            const r = parseInt(rows.input.value, 10);
+            if (!(c >= 1 && r >= 1)) return;
+            const targetCols = clamp(c, config.editor.maxColumns);
+            const targetRows = clamp(r, config.editor.maxRows);
+            setTimeout(() => resizeLexicalTable(table, targetCols, targetRows), 250);
+        }, true);
+    }
+
+    /** Add an "Advanced..." button under the size display of the new editor's table grid. */
+    function addLexicalAdvancedButton(creator, api) {
+        if (creator.dataset.bteAdvanced) return;
+        creator.dataset.bteAdvanced = '1';
+        const button = el('button', {type: 'button', className: 'bte-advanced', textContent: config.labels.advanced});
+        button.addEventListener('mousedown', event => event.preventDefault());
+        button.addEventListener('click', () => {
+            // The editor closes its menus on a click outside them, so send one to dismiss the Table menu.
+            document.body.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+            openSizeDialog(api);
+        });
+        creator.append(button);
+    }
+
+    function watchLexicalUi(api) {
+        injectStyles();
+        // Remember which table the properties action was started from: the modal takes focus when it opens.
+        let propertiesTable = null;
+        const remember = event => {
+            const button = event.target.closest && event.target.closest('button[title]');
+            if (button && button.title === editorText('Table properties')) propertiesTable = lexicalTableAtSelection();
+        };
+        document.addEventListener('mousedown', remember, true);
+        document.addEventListener('click', remember, true);
+
+        const inspect = node => {
+            if (node.nodeType !== 1) return;
+            const creators = node.matches('.editor-table-creator') ? [node] : Array.from(node.querySelectorAll('.editor-table-creator'));
+            creators.forEach(creator => addLexicalAdvancedButton(creator, api));
+            const modals = node.matches('.editor-modal-wrapper') ? [node] : Array.from(node.querySelectorAll('.editor-modal-wrapper'));
+            modals.forEach(modal => extendLexicalTableModal(modal, propertiesTable));
+        };
+        const observer = new MutationObserver(mutations => {
+            for (const mutation of mutations) mutation.addedNodes.forEach(inspect);
+        });
+        observer.observe(document.body, {childList: true, subtree: true});
+        inspect(document.body);
+    }
+
     window.addEventListener('editor-wysiwyg::post-init', event => {
         const {usage, api} = event.detail;
         if (usage !== 'page-editor' || !config.editor.largeTables) return;
@@ -810,6 +997,7 @@
         if (section) {
             section.addButton(button, 2);
         }
+        watchLexicalUi(api);
     });
 
     /* ---------------------------------------------------------------------------------------
