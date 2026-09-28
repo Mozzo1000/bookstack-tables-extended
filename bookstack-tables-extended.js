@@ -2,7 +2,7 @@
  * BookStack Tables Extended
  *
  * Viewing a page: adds column sorting, Excel-style column filters and horizontal scrolling to
- * tables. Display-only: saved page content is never modified.
+ * tables, and can export the filtered view as an Excel file. Saved page content is never modified.
  * Editing a page: lets the editor create tables with more than 10 columns (configurable) and change the
  * number of columns and rows of an existing table from its properties dialog (both editors).
  *
@@ -40,6 +40,8 @@
         disableBodyClasses: ['tag-pair-tablesextended-off', 'tag-name-tablesextendedoff'],
         // Columns with more distinct values than this show the search box only, without a checklist.
         maxListValues: 200,
+        // Show "Export current view" next to "Clear filters" while a filter is active.
+        export: true,
         ...userConfig,
         editor: {
             // Let editors create tables larger than the built-in 10 x 10 picker allows.
@@ -59,6 +61,7 @@
             noValues: 'No matching values',
             clearFilter: 'Clear filter',
             clear: 'Clear filters',
+            exportView: 'Export current view',
             showing: (shown, total) => `Showing ${shown} of ${total} rows`,
             noMatches: 'No matching rows',
             insertTable: 'Insert table (custom size)',
@@ -100,6 +103,8 @@
 .bte-fbtn svg { display: block; width: 12px; height: 12px; fill: currentColor; }
 .bte-hidden { display: none !important; }
 .bte-status { display: flex; gap: .75em; align-items: center; margin: .35em 0 1em; font-size: .85em; opacity: .85; }
+/* Author display rules override the browser default for the hidden attribute, so restore it. */
+.bte-status[hidden], .bte-clear[hidden] { display: none !important; }
 .bte-clear {
     font: inherit; color: var(--color-link, var(--color-primary, #206ea7)); background: none;
     border: 0; padding: 0; cursor: pointer; text-decoration: underline;
@@ -368,10 +373,11 @@
         document.body.appendChild(node);
         applySurface(node, column.surface);
 
-        // Position below the button, kept inside the viewport. Closes if the button scrolls out of view.
-        const place = () => {
+        // Position below the button, kept inside the viewport. Scrolling the button out of view closes the
+        // menu. A resize only repositions it, because some browsers report odd sizes while resizing.
+        const place = closeIfHidden => {
             const rect = button.getBoundingClientRect();
-            if (rect.bottom < 0 || rect.top > window.innerHeight) {
+            if (closeIfHidden && (rect.bottom < 0 || rect.top > window.innerHeight)) {
                 closePopover(false);
                 return;
             }
@@ -381,7 +387,7 @@
             node.style.top = top + 'px';
             list.style.maxHeight = Math.max(120, Math.min(260, window.innerHeight - top - 150)) + 'px';
         };
-        place();
+        place(false);
 
         const onDocClick = event => {
             if (!node.contains(event.target) && !button.contains(event.target)) closePopover(false);
@@ -390,9 +396,9 @@
             if (event.key === 'Escape') { event.stopPropagation(); closePopover(true); }
         };
         const onScroll = event => {
-            if (!node.contains(event.target)) place();
+            if (!node.contains(event.target)) place(true);
         };
-        const onResize = place;
+        const onResize = () => place(false);
         document.addEventListener('mousedown', onDocClick, true);
         document.addEventListener('keydown', onKey, true);
         window.addEventListener('scroll', onScroll, true);
@@ -410,6 +416,192 @@
             },
         };
         search.focus();
+    }
+
+    /* ---------------------------------------------------------------------------------------
+     * Viewing: exporting the current view as an Excel file (no libraries: an .xlsx file is a zip of small XML files)
+     * ------------------------------------------------------------------------------------- */
+
+    const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const SPREADSHEET_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+    const REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
+    const OFFICE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+
+    /**
+     * A number when the text is a plain number that survives a round trip, so codes such as 007 or 1.50 stay
+     * text. Thousands separators are dropped. Currency symbols and percent signs keep the value as text.
+     */
+    function exportNumber(text) {
+        if (!/^[-+]?(\d{1,3}(,\d{3})+|\d+)?(\.\d+)?$/.test(text) || !/\d/.test(text)) return null;
+        const plain = text.replace(/,/g, '').replace(/^\+/, '');
+        const value = Number(plain);
+        return Number.isFinite(value) && String(value) === plain ? value : null;
+    }
+
+    function xmlEscape(text) {
+        return text
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /** 0 -> A, 25 -> Z, 26 -> AA */
+    function columnName(index) {
+        let name = '';
+        for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) {
+            name = String.fromCharCode(65 + ((n - 1) % 26)) + name;
+        }
+        return name;
+    }
+
+    const crcTable = (() => {
+        const table = new Uint32Array(256);
+        for (let n = 0; n < 256; n++) {
+            let c = n;
+            for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+            table[n] = c >>> 0;
+        }
+        return table;
+    })();
+
+    function crc32(bytes) {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < bytes.length; i++) crc = crcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    /** A zip file without compression. `files` is a list of {name, data} where data is a Uint8Array. */
+    function buildZip(files) {
+        const encoder = new TextEncoder();
+        const now = new Date();
+        const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+        const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+        const parts = [];
+        const directory = [];
+        let offset = 0;
+
+        for (const file of files) {
+            const name = encoder.encode(file.name);
+            const crc = crc32(file.data);
+
+            const local = new DataView(new ArrayBuffer(30));
+            local.setUint32(0, 0x04034B50, true);
+            local.setUint16(4, 20, true);
+            local.setUint16(6, 0x0800, true); // file names are UTF-8
+            local.setUint16(10, dosTime, true);
+            local.setUint16(12, dosDate, true);
+            local.setUint32(14, crc, true);
+            local.setUint32(18, file.data.length, true);
+            local.setUint32(22, file.data.length, true);
+            local.setUint16(26, name.length, true);
+            parts.push(new Uint8Array(local.buffer), name, file.data);
+
+            const entry = new DataView(new ArrayBuffer(46));
+            entry.setUint32(0, 0x02014B50, true);
+            entry.setUint16(4, 20, true);
+            entry.setUint16(6, 20, true);
+            entry.setUint16(8, 0x0800, true);
+            entry.setUint16(12, dosTime, true);
+            entry.setUint16(14, dosDate, true);
+            entry.setUint32(16, crc, true);
+            entry.setUint32(20, file.data.length, true);
+            entry.setUint32(24, file.data.length, true);
+            entry.setUint16(28, name.length, true);
+            entry.setUint32(42, offset, true);
+            directory.push(new Uint8Array(entry.buffer), name);
+
+            offset += 30 + name.length + file.data.length;
+        }
+
+        const directorySize = directory.reduce((sum, chunk) => sum + chunk.length, 0);
+        const end = new DataView(new ArrayBuffer(22));
+        end.setUint32(0, 0x06054B50, true);
+        end.setUint16(8, files.length, true);
+        end.setUint16(10, files.length, true);
+        end.setUint32(12, directorySize, true);
+        end.setUint32(16, offset, true);
+        return [...parts, ...directory, new Uint8Array(end.buffer)];
+    }
+
+    /** The sheet with a bold, frozen heading row. Text is stored as plain strings, so a cell such as =1+1 is never a formula. */
+    function buildSheetXml(header, rows) {
+        const numeric = header.map((_, col) => {
+            const values = rows.map(row => row[col]).filter(value => value !== '');
+            return values.length > 0 && values.every(value => exportNumber(value) !== null);
+        });
+        const text = (ref, value, style) => value === ''
+            ? ''
+            : `<c r="${ref}" t="inlineStr"${style ? ` s="${style}"` : ''}><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`;
+
+        const widths = header.map((name, col) => {
+            const longest = Math.max(name.length, ...rows.map(row => row[col].length));
+            return Math.min(60, Math.max(8, longest + 2));
+        });
+        const cols = widths.map((width, i) => `<col min="${i + 1}" max="${i + 1}" width="${width}" customWidth="1"/>`).join('');
+
+        let sheetData = '<row r="1">' + header.map((name, col) => text(columnName(col) + '1', name, 1)).join('') + '</row>';
+        rows.forEach((row, r) => {
+            const cells = row.map((value, col) => {
+                const ref = columnName(col) + (r + 2);
+                return numeric[col] && value !== '' ? `<c r="${ref}"><v>${exportNumber(value)}</v></c>` : text(ref, value, 0);
+            }).join('');
+            sheetData += `<row r="${r + 2}">${cells}</row>`;
+        });
+
+        return XML_HEAD + `<worksheet xmlns="${SPREADSHEET_NS}"><sheetViews><sheetView workbookViewId="0">`
+            + '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+            + `<cols>${cols}</cols><sheetData>${sheetData}</sheetData></worksheet>`;
+    }
+
+    function buildXlsx(header, rows, sheetName) {
+        const encoder = new TextEncoder();
+        const safeName = sheetName.replace(/[\\/?*[\]:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 31) || 'Table';
+        const files = [
+            ['[Content_Types].xml', XML_HEAD + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                + `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`
+                + `<Default Extension="xml" ContentType="application/xml"/>`
+                + `<Override PartName="/xl/workbook.xml" ContentType="${XLSX_TYPE}.main+xml"/>`
+                + `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+                + `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`],
+            ['_rels/.rels', XML_HEAD + `<Relationships xmlns="${REL_NS}"><Relationship Id="rId1" Type="${OFFICE_REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+            ['xl/workbook.xml', XML_HEAD + `<workbook xmlns="${SPREADSHEET_NS}" xmlns:r="${OFFICE_REL}"><sheets><sheet name="${xmlEscape(safeName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`],
+            ['xl/_rels/workbook.xml.rels', XML_HEAD + `<Relationships xmlns="${REL_NS}">`
+                + `<Relationship Id="rId1" Type="${OFFICE_REL}/worksheet" Target="worksheets/sheet1.xml"/>`
+                + `<Relationship Id="rId2" Type="${OFFICE_REL}/styles" Target="styles.xml"/></Relationships>`],
+            ['xl/styles.xml', XML_HEAD + `<styleSheet xmlns="${SPREADSHEET_NS}">`
+                + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+                + '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
+                + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+                + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+                + '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'
+                + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+            ['xl/worksheets/sheet1.xml', buildSheetXml(header, rows)],
+        ].map(([name, xml]) => ({name, data: encoder.encode(xml)}));
+        return new Blob(buildZip(files), {type: XLSX_TYPE});
+    }
+
+    /** "<page title>.xlsx", with " - table N" added when the page has several tables. */
+    function exportFileName(table) {
+        const title = document.title.split(' | ')[0].trim() || 'table';
+        const tables = Array.from(document.querySelectorAll('table[data-bte-init]'));
+        const suffix = tables.length > 1 ? ` - table ${tables.indexOf(table) + 1}` : '';
+        const clean = (title + suffix).replace(/[\\/:*?"<>|\u0000-\u001F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+        return (clean || 'table') + '.xlsx';
+    }
+
+    /** Downloads the rows that are visible now, in the order they are shown now. */
+    function exportCurrentView(table, header, rows) {
+        const blob = buildXlsx(header, rows, document.title.split(' | ')[0]);
+        const url = URL.createObjectURL(blob);
+        const link = el('a', {href: url, download: exportFileName(table)});
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
     }
 
     /* ---------------------------------------------------------------------------------------
@@ -437,8 +629,10 @@
         let sortState = {col: -1, dir: 'none'};
         let status = null;
         let statusText = null;
+        let exportButton = null;
 
         const parent = rows[0].tr.parentNode;
+        let currentOrder = rows.slice();
 
         function render() {
             const ordered = rows.slice();
@@ -462,6 +656,7 @@
             for (const row of ordered) {
                 parent.appendChild(row.tr);
             }
+            currentOrder = ordered;
         }
 
         const isActive = f => f.text !== '' || f.selected !== null;
@@ -482,6 +677,7 @@
             if (status) {
                 status.hidden = !filters.some(isActive);
                 statusText.textContent = shown === 0 ? t.noMatches : t.showing(shown, rows.length);
+                if (exportButton) exportButton.hidden = shown === 0;
             }
         }
 
@@ -579,6 +775,14 @@
                 applyFilters();
             });
             status.append(statusText, clear);
+            if (config.export) {
+                exportButton = el('button', {type: 'button', className: 'bte-clear bte-export', textContent: t.exportView});
+                exportButton.addEventListener('click', () => {
+                    const visible = currentOrder.filter(row => !row.tr.classList.contains('bte-hidden'));
+                    exportCurrentView(table, headerCells.map(cellText), visible.map(row => row.texts));
+                });
+                status.append(exportButton);
+            }
             wrapper.after(status);
         }
     }
