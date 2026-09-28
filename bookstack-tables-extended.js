@@ -3,7 +3,8 @@
  *
  * Viewing a page: adds column sorting, Excel-style column filters and horizontal scrolling to
  * tables. Display-only: saved page content is never modified.
- * Editing a page: lets the editor create tables with more than 10 columns (configurable).
+ * Editing a page: lets the editor create tables with more than 10 columns (configurable) and change the
+ * number of columns and rows of an existing table from its properties dialog (WYSIWYG Editor).
  *
  * Install: Settings > Customization > Custom HTML Head Content
  *   <script src="/bookstack-tables-extended.js"></script>
@@ -61,6 +62,8 @@
             showing: (shown, total) => `Showing ${shown} of ${total} rows`,
             noMatches: 'No matching rows',
             insertTable: 'Insert table (custom size)',
+            advanced: 'Advanced…',
+            removeContent: 'Making the table smaller removes cells that contain content. Continue?',
             columns: 'Columns',
             rows: 'Rows',
             insert: 'Insert',
@@ -120,6 +123,13 @@
 .bte-list .bte-val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bte-list .bte-count { opacity: .6; font-size: .85em; }
 .bte-empty { padding: 4px 6px; opacity: .7; }
+/* TinyMCE's skin resets buttons with a more specific selector, so this one is qualified with .tox. */
+.tox button.bte-advanced {
+    display: block; box-sizing: border-box; width: 100%; margin: 6px 0 0; padding: 7px 8px;
+    font: inherit; font-size: 14px; text-align: center; color: inherit; background: none;
+    border: 0; border-top: 1px solid rgba(128, 128, 128, .4); cursor: pointer;
+}
+.tox button.bte-advanced:hover, .tox button.bte-advanced:focus-visible { background: rgba(128, 128, 128, .22); outline: none; }
 .bte-modal-backdrop { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .4); }
 .bte-modal { width: 280px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .bte-modal label { display: flex; flex-direction: column; gap: 3px; }
@@ -609,22 +619,139 @@
 
     const clamp = (value, max) => Math.max(1, Math.min(Number(value) || 1, max));
 
-    // WYSIWYG Editor (TinyMCE): replace the fixed 10 x 10 picker with the size dialog,
-    // which accepts any number of columns and rows, and cap the result at the configured maximum.
-    window.addEventListener('editor-tinymce::pre-init', event => {
-        if (config.editor.largeTables) {
-            event.detail.config.table_grid = false;
-        }
-    });
+    // WYSIWYG Editor (TinyMCE): keep the 10 x 10 picker, add an "Advanced..." button under it that opens
+    // TinyMCE's own size dialog (any number of columns and rows), and cap what that dialog can create.
     window.addEventListener('editor-tinymce::setup', event => {
         if (!config.editor.largeTables) return;
-        event.detail.editor.on('BeforeExecCommand', e => {
+        const editor = event.detail.editor;
+        injectStyles();
+
+        editor.on('BeforeExecCommand', e => {
             if (e.command === 'mceInsertTable' && e.value && typeof e.value === 'object') {
                 if (e.value.columns) e.value.columns = clamp(e.value.columns, config.editor.maxColumns);
                 if (e.value.rows) e.value.rows = clamp(e.value.rows, config.editor.maxRows);
             }
         });
+
+        // Add Cols and Rows to the properties dialog of an existing table.
+        editor.on('init', () => {
+            const windowManager = editor.windowManager;
+            const open = windowManager.open;
+            windowManager.open = function (spec, params) {
+                return open.call(this, extendTablePropertiesDialog(editor, spec), params);
+            };
+        });
+
+        // The picker is built each time the Table menu opens, so add the button as it appears.
+        const addAdvancedButton = picker => {
+            if (picker.dataset.bteAdvanced) return;
+            picker.dataset.bteAdvanced = '1';
+            const button = el('button', {type: 'button', className: 'bte-advanced', textContent: config.labels.advanced});
+            // Keep focus in the editor so the menu logic is not disturbed by the click.
+            button.addEventListener('mousedown', mouseEvent => mouseEvent.preventDefault());
+            button.addEventListener('click', () => {
+                // Close the Table menu first so it does not stay open behind the dialog.
+                const menuButton = document.querySelector('.tox-tbtn[aria-expanded="true"]');
+                if (menuButton) menuButton.click();
+                editor.execCommand('mceInsertTableDialog');
+            });
+            picker.after(button);
+        };
+        const observer = new MutationObserver(mutations => {
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType !== 1) continue;
+                    if (node.matches('.tox-insert-table-picker')) addAdvancedButton(node);
+                    node.querySelectorAll('.tox-insert-table-picker').forEach(addAdvancedButton);
+                }
+            }
+        });
+        observer.observe(document.body, {childList: true, subtree: true});
+        editor.on('remove', () => observer.disconnect());
     });
+
+    /** Number of grid columns of a table (cells with a colspan count for every column they cover). */
+    function tableColumnCount(table) {
+        return Array.from(table.rows).reduce((max, row) => Math.max(max, rowWidth(row)), 0);
+    }
+
+    /** True when removing columns >= cols or rows >= rows would delete cells that hold content. */
+    function resizeRemovesContent(table, cols, rows) {
+        const hasContent = cell => cell.textContent.trim() !== '' || cell.querySelector('img, iframe, video, pre, table') !== null;
+        return Array.from(table.rows).some((row, r) => {
+            return Array.from(row.cells).some((cell, c) => (r >= rows || c >= cols) && hasContent(cell));
+        });
+    }
+
+    /** Adds or removes columns and rows at the end of a table with TinyMCE's own commands (one undo step). */
+    function resizeTable(editor, table, cols, rows) {
+        const run = () => editor.undoManager.transact(() => {
+            const put = cell => editor.selection.setCursorLocation(cell, 0);
+            const firstRow = () => table.rows[0];
+            const lastCellOf = row => row.cells[row.cells.length - 1];
+            while (tableColumnCount(table) < cols) {
+                put(lastCellOf(firstRow()));
+                editor.execCommand('mceTableInsertColAfter');
+            }
+            while (tableColumnCount(table) > cols && firstRow().cells.length > 1) {
+                put(lastCellOf(firstRow()));
+                editor.execCommand('mceTableDeleteCol');
+            }
+            while (table.rows.length < rows) {
+                put(table.rows[table.rows.length - 1].cells[0]);
+                editor.execCommand('mceTableInsertRowAfter');
+            }
+            while (table.rows.length > rows && table.rows.length > 1) {
+                put(table.rows[table.rows.length - 1].cells[0]);
+                editor.execCommand('mceTableDeleteRow');
+            }
+            put(table.rows[0].cells[0]);
+        });
+
+        if (tableColumnCount(table) === cols && table.rows.length === rows) return;
+        if (resizeRemovesContent(table, cols, rows)) {
+            editor.windowManager.confirm(config.labels.removeContent, confirmed => { if (confirmed) run(); });
+        } else {
+            run();
+        }
+    }
+
+    /**
+     * TinyMCE builds its dialogs from a specification object. When it opens the properties dialog of an
+     * existing table (the same General tab as the insert dialog, but without Cols and Rows), add those two
+     * fields, pre-filled with the current size, and apply them after TinyMCE has applied its own settings.
+     */
+    function extendTablePropertiesDialog(editor, spec) {
+        try {
+            const general = spec && spec.body && spec.body.type === 'tabpanel' && spec.body.tabs && spec.body.tabs[0];
+            const grid = general && general.items && general.items[0];
+            if (!grid || grid.type !== 'grid' || !Array.isArray(grid.items)) return spec;
+            const names = grid.items.map(item => item.name);
+            if (!names.includes('width') || !names.includes('cellspacing') || names.includes('cols')) return spec;
+            const table = editor.dom.getParent(editor.selection.getStart(), 'table');
+            if (!table || table.rows.length === 0) return spec;
+
+            grid.items.unshift(
+                {type: 'input', name: 'cols', label: 'Cols', inputMode: 'numeric'},
+                {type: 'input', name: 'rows', label: 'Rows', inputMode: 'numeric'},
+            );
+            spec.initialData = {...spec.initialData, cols: String(tableColumnCount(table)), rows: String(table.rows.length)};
+
+            const originalSubmit = spec.onSubmit;
+            spec.onSubmit = api => {
+                const data = api.getData();
+                originalSubmit(api);
+                const cols = parseInt(data.cols, 10);
+                const rows = parseInt(data.rows, 10);
+                if (cols >= 1 && rows >= 1) {
+                    resizeTable(editor, table, clamp(cols, config.editor.maxColumns), clamp(rows, config.editor.maxRows));
+                }
+            };
+        } catch (error) {
+            // Never break the properties dialog: fall back to TinyMCE's own version.
+        }
+        return spec;
+    }
 
     // New WYSIWYG editor (Lexical): add an "Insert table" button that asks for a size.
     function openSizeDialog(api) {
