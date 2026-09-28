@@ -24,7 +24,8 @@ A script for [BookStack](https://www.bookstackapp.com) that adds sorting, Excel-
 
 **When editing a page**
 
-- **Tables wider than 10 columns.** BookStack's editors offer a 10 by 10 grid for new tables. With this script, the WYSIWYG Editor asks for the number of columns and rows instead, and the new WYSIWYG gets an extra toolbar button for the same purpose. The largest table that can be created in one step is configurable (50 columns by 200 rows by default). See [Editors](#editors).
+- **Tables wider than 10 columns.** BookStack's editors offer a 10 by 10 grid for new tables. With this script, the WYSIWYG Editor keeps that grid and adds an **Advanced…** button under it that asks for the number of columns and rows, and the new WYSIWYG gets an extra toolbar button for the same purpose. The largest table that can be created in one step is configurable (50 columns by 200 rows by default). See [Editors](#editors).
+- **Changing the size of an existing table.** In the WYSIWYG Editor, **Table > Table properties** also shows **Cols** and **Rows**, filled in with the table's current size. Changing them adds or removes columns and rows at the end of the table.
 
 ## Supported BookStack versions
 
@@ -32,9 +33,9 @@ This script is tested against the exact BookStack releases below. **Use it only 
 
 | BookStack release | Viewing pages from either editor | Larger tables in the WYSIWYG Editor | Larger tables in the new WYSIWYG (beta) |
 | ----------------- | -------------------------------- | ----------------------------------- | --------------------------------------- |
-| v23.05            | Supported                        | Supported                           | Not available in this release           |
-| v23.12.3          | Supported                        | Supported                           | Not available in this release           |
-| v24.02.3          | Supported                        | Supported                           | Not available in this release           |
+| v23.05            | Supported                        | Not supported                       | Not available in this release           |
+| v23.12.3          | Supported                        | Not supported                       | Not available in this release           |
+| v24.02.3          | Supported                        | Not supported                       | Not available in this release           |
 | v26.09            | Supported                        | Supported                           | Supported                               |
 
 Releases that are not listed are unsupported, including every other release between and after these, and every release older than v23.05.
@@ -52,8 +53,9 @@ The script works with pages saved by either editor, and viewing behaves identica
 | Available in | All supported releases | v24.10.3 and later |
 | How a header row is stored | A separate header section. The script uses the last row of that section as the headings. | Heading cells in the first row of the table. The script uses the first row as the headings. |
 | Tables without a header row | The first row is used as the headings. | The first row is used as the headings. |
-| Creating a table | **Table > Table** opens a dialog asking for columns and rows. It replaces the 10 by 10 grid. | The built-in 10 by 10 grid stays. A second toolbar button, **Insert table (custom size)**, next to the built-in table button asks for columns and rows. |
+| Creating a table | **Table > Table** shows the usual 10 by 10 grid. An **Advanced…** button under the size label opens a dialog asking for columns and rows. | The built-in 10 by 10 grid stays. A second toolbar button, **Insert table (custom size)**, next to the built-in table button asks for columns and rows. |
 | Size limit when creating | Columns and rows are capped at the configured maximum. | The dialog refuses sizes above the configured maximum. |
+| Changing the size of an existing table | **Table > Table properties** has **Cols** and **Rows**. Growing adds empty columns and rows at the end. Shrinking removes them from the end and asks first if any removed cell has content. The whole change is one undo step. | Use the editor's own insert and delete row and column actions. Its table properties dialog has no column or row count. |
 | Requires | Nothing extra | The editor hooks that BookStack provides from v25.12 onwards. |
 | Viewing | Identical | Identical |
 
@@ -105,7 +107,7 @@ To change a default, define `window.BookStackTablesExtended` in a `<script>` tag
 
 Set `editor: {largeTables: false}` to leave both editors exactly as BookStack ships them.
 
-The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`, `search`, `selectAll`, `blanks`, `noValues`, `clearFilter`, `clear`, `showing(shown, total)`, `noMatches`, `insertTable`, `columns`, `rows`, `insert` and `cancel`. Any key you leave out keeps its English text. Example of translating part of the interface:
+The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`, `search`, `selectAll`, `blanks`, `noValues`, `clearFilter`, `clear`, `showing(shown, total)`, `noMatches`, `advanced`, `removeContent`, `insertTable`, `columns`, `rows`, `insert` and `cancel`. Any key you leave out keeps its English text. Example of translating part of the interface:
 
 ```html
 <script>
@@ -148,7 +150,9 @@ The tag does not affect the editing features. Use `editor.largeTables` to turn t
 - Sorting and filtering are not saved. They reset when the page is reloaded and do not appear in exports or printouts.
 - The filter search matches text only. Operators such as `>5` are not interpreted.
 - Tables that are added to the page after it has loaded are not enhanced.
-- In the WYSIWYG Editor, the table size dialog replaces the 10 by 10 grid for every new table. The grid cannot be kept alongside it.
+- Changing **Cols** or **Rows** in the table properties of the WYSIWYG Editor always works from the end of the table. Removing a column or row in the middle uses the editor's own delete column and delete row actions.
+- In a table with merged cells, the Cols and Rows fields follow the editor's own insert and delete column and row commands, which may adjust merged cells.
+- The Cols and Rows fields in table properties are not available in the new WYSIWYG.
 - In the new WYSIWYG, the size limit is enforced by the dialog. A table inserted some other way, for example by pasting, is not limited.
 
 ## Testing with Docker

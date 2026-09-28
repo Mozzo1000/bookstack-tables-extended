@@ -79,10 +79,18 @@ Sort by Team. Rows with the same team should keep their original relative order 
 
 Edit any page and create a new table with 15 columns and 3 rows.
 
-- **WYSIWYG Editor:** choose **Table > Table**. A dialog asks for columns and rows. Enter 15 and 3.
+- **WYSIWYG Editor:** choose **Table > Table**. The usual grid appears, so hover and click to insert a small table as before. To go bigger, select **Advanced…** under the size label, which opens a dialog. Enter 15 and 3.
 - **new WYSIWYG (v25.12 and later):** use the toolbar button **Insert table (custom size)** (a small table with a plus), next to the built-in table button. Enter 15 and 3.
 
 Asking for more than 50 columns is refused or capped at 50. The limit is configurable with `editor.maxColumns`.
+
+### Changing an existing table (WYSIWYG Editor)
+
+Click inside a table, then choose **Table > Table properties**. The dialog shows **Cols** and **Rows** with the table's current size.
+
+- Raise them (for example from 3 columns to 6) and select **Save**. Empty columns and rows are added at the end, and existing content stays where it is.
+- Lower them. If a removed cell has content, you are asked to confirm first.
+- Use undo once to return to the previous size.
 
 ## 8. Opting a page out
 
