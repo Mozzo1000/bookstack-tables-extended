@@ -35,6 +35,13 @@ const wideHeader = Array.from({length: 14}, (_, i) => `Column ${i + 1}`);
 const wide = `<table id="bkmrk-t4" style="width: 100%;"><thead><tr>${wideHeader.map(h => `<td>${h}</td>`).join('')}</tr></thead><tbody>${[3, 1, 2].map(n => `<tr>${wideHeader.map((_, i) => `<td>r${n}c${i + 1} some longer text</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 const rowspan = `<table id="bkmrk-t5"><thead><tr><td>A</td><td>B</td></tr></thead><tbody><tr><td rowspan="2">x</td><td>2</td></tr><tr><td>1</td></tr></tbody></table>`;
 const nested = `<table id="bkmrk-t6"><thead><tr><td>Outer</td><td>Other</td></tr></thead><tbody><tr><td><table id="bkmrk-t6in"><thead><tr><td>In</td></tr></thead><tbody><tr><td>b</td></tr><tr><td>a</td></tr></tbody></table></td><td>2</td></tr><tr><td>z</td><td>1</td></tr></tbody></table>`;
+// Values that commonly break spreadsheet exports: leading zeros, formulas, markup characters, non-Latin text.
+const exportEdge = '<table id="bkmrk-t8"><thead><tr><td>Code</td><td>Note</td><td>Amount</td></tr></thead><tbody>'
+    + '<tr><td>007</td><td>=1+1</td><td>1,200</td></tr>'
+    + '<tr><td>12</td><td>a &amp; b &lt;c&gt; "q"</td><td>3.5</td></tr>'
+    + '<tr><td>1e3</td><td>Zoë – 日本語</td><td></td></tr>'
+    + '<tr><td>x</td><td>skip</td><td>-7</td></tr>'
+    + '</tbody></table>';
 const linkHeader = `<table id="bkmrk-t7"><thead><tr><td><a href="#x">Linked head</a></td><td>N</td></tr></thead><tbody><tr><td>b</td><td>2</td></tr><tr><td>a</td><td>10</td></tr></tbody></table>`;
 
 (async () => {
@@ -47,6 +54,7 @@ const linkHeader = `<table id="bkmrk-t7"><thead><tr><td><a href="#x">Linked head
     await page('Rowspan', rowspan);
     await page('Nested', nested);
     await page('Link header', linkHeader);
+    await page('Export edge cases', exportEdge);
     await page('Opted out', tinymce, [{name: 'tablesextended', value: 'off'}]);
     await page('Opted out (name only)', tinymce, [{name: 'tablesextendedoff', value: ''}]);
     console.log('fixtures created');

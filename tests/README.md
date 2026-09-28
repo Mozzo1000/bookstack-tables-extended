@@ -13,7 +13,7 @@ Everything for developing and testing the script is in this folder: a Docker set
 | `e2e.js` | The browser checks and screenshots. |
 | `fixtures.js` | Creates the test book and pages through the BookStack API. |
 | `marketing-screenshots.js` | Takes the screenshots in `assets/` that the main README shows. |
-| `package.json`, `package-lock.json` | Install Playwright. |
+| `package.json`, `package-lock.json` | Install Playwright and exceljs. |
 
 Run Docker Compose commands from this folder, because `docker-compose.yml` is here. The shell scripts can be started from anywhere, for example `bash tests/run-version.sh version-v26.09` from the repository root.
 
@@ -37,7 +37,7 @@ The automated tests are end-to-end tests that run `bookstack-tables-extended.js`
 - Bash (on Windows, Git Bash)
 - Ports 6875 free on the machine
 
-The first run installs [Playwright](https://playwright.dev) and its Chromium browser into `tests/node_modules`, which is git-ignored.
+The first run installs [Playwright](https://playwright.dev), its Chromium browser and [exceljs](https://github.com/exceljs/exceljs) (which reads the exported Excel files back to check them) into `tests/node_modules`, which is git-ignored.
 
 ## Running the tests
 
@@ -89,6 +89,7 @@ Screenshots and the full log of each run are saved to `screenshots/<version>/` i
 | Table markup          | A header row stored as `<thead>` with `<td>` cells, a header row of `<th>` cells in `<tbody>`, and a table with no header markup |
 | Sorting               | Text (case-insensitive, natural order), numbers with thousands separators and currency, blanks last, ascending then descending then original order, keyboard use, `aria-sort` |
 | Filtering             | Filter button per column, search inside the popover (case-insensitive), value checklist with counts and "(Select all)" mixed state, "(Blanks)", filters in several columns combined, row count line, no-match messages, "Clear filter" and "Clear filters", Escape and outside click closing the popover, popover kept inside the viewport |
+| Export                | The export link appears next to "Clear filters" only while a filter is active and hides when no row matches. The downloaded file is named after the page, is read back with exceljs, and contains only the visible rows in the order shown. Numbers are numbers, currency stays text, the heading row is bold, and leading zeros, formula-looking text, markup characters and non-Latin text survive |
 | Scrolling             | A 14-column table scrolls inside the page while the page itself does not scroll sideways                                      |
 | Edge cases            | Merged rows (`rowspan`), nested tables, links in headings, pages opted out with the `tablesextended` tag                       |
 | Editing               | The editor screen contains none of the script's viewing markup. WYSIWYG Editor: the 10 by 10 grid is still offered and still inserts, an Advanced button sits under the size label, opening it closes the Table menu, cancelling inserts nothing, and the dialog creates a 15 column table and caps a request for 80 columns at 50. The properties dialog of an existing table shows the current Cols and Rows once each, growing keeps content and the other table properties, shrinking empty cells needs no confirmation, shrinking cells with content asks (declining changes nothing, confirming applies it), one undo restores the previous size, and Cols is capped at 50. New WYSIWYG: an Advanced button sits under the grid's size display and closes the Table menu when it opens the dialog, the grid still inserts, the properties modal shows the current Cols and Rows once each, growing keeps content, shrinking cells with content asks (declining changes nothing, confirming applies it), undo restores the previous size, the custom size button creates a 15 column table, the dialog refuses 80 columns, 50 columns can be inserted, and Escape cancels. On releases before v25.12 the new editor's custom size button must be absent |

@@ -30,7 +30,7 @@ DC="docker compose -p bte-test"
 DB="$DC exec -T bookstack-db mariadb -ubookstack -pbookstack-test bookstackapp"
 
 # Install test dependencies once.
-if [ ! -d "$HERE/node_modules/playwright" ]; then
+if [ ! -d "$HERE/node_modules/playwright" ] || [ ! -d "$HERE/node_modules/exceljs" ]; then
   (cd "$HERE" && npm install --no-audit --no-fund && npx playwright install chromium) || exit 3
 fi
 

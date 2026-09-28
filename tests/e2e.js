@@ -3,6 +3,8 @@
 // Environment: BASE, SHOTS_DIR, EDITOR_MODE (tinymce|lexical), BS_VERSION (for example 26.03.5).
 const {chromium} = require('playwright');
 const fs = require('fs');
+const os = require('os');
+const ExcelJS = require('exceljs');
 const path = require('path');
 
 const BASE = process.env.BASE || 'http://localhost:6875';
@@ -195,6 +197,51 @@ const eq = (a, b, m) => {
   await open('opted-out-name-only');
   ok(await page.$('.bte-scroll') === null && await page.$('.bte-fbtn') === null, 'no enhancement when the page has the tag tablesextendedoff with no value');
   console.log('   body tag classes:', JSON.stringify(await page.$eval('body', b => [...b.classList].filter(c => c.startsWith('tag-')))));
+
+  console.log('\n== export current view');
+  // Reads a downloaded .xlsx with an independent reader (exceljs).
+  const readWorkbook = async download => {
+    const file = path.join(os.tmpdir(), 'bte-export-' + Date.now() + '-' + Math.random().toString(16).slice(2) + '.xlsx');
+    await download.saveAs(file);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(file);
+    fs.unlinkSync(file);
+    const sheet = workbook.worksheets[0];
+    const rows = [];
+    sheet.eachRow({includeEmpty: false}, row => rows.push(row.values.slice(1)));
+    return {name: download.suggestedFilename(), sheet, rows, sheetName: sheet.name};
+  };
+  const exportButton = '.bte-status .bte-export';
+  await open('tiny-thead-td');
+  ok(!(await page.isVisible(exportButton)), 'no export link while no filter is active');
+  await clickHead(page.locator('#bkmrk-t1 thead td:nth-child(1)'));
+  await page.locator('#bkmrk-t1 thead td:nth-child(1) .bte-fbtn').click();
+  await page.fill('.bte-pop input[type=search]', 'echo');
+  await page.keyboard.press('Escape');
+  ok(await page.isVisible(exportButton), 'the export link appears while a filter is active');
+  eq(await page.$$eval('.bte-status button', b => b.map(x => x.textContent)), ['Clear filters', 'Export current view'], 'the export link sits next to "Clear filters"');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click(exportButton)]);
+  const exported = await readWorkbook(download);
+  eq(exported.name, 'Tiny (thead td).xlsx', 'the file is named after the page');
+  eq(exported.sheetName, 'Tiny (thead td)', 'the sheet is named after the page');
+  eq(exported.rows, [['Name', 'Qty', 'Price', 'Date'], ['Echo 9', 7, '$7.25', '2024-02-03'], ['Echo 10', 250, '$100', '2024-02-02']],
+    'only the visible rows are exported, in the order shown, with numbers as numbers and currency kept as text');
+  ok(!!exported.sheet.getCell('A1').font.bold, 'the heading row is bold');
+  eq(await col('#bkmrk-t1', 0), ['Echo 9', 'Echo 10'], 'exporting leaves the view as it was');
+  await page.locator('#bkmrk-t1 thead td:nth-child(1) .bte-fbtn').click();
+  await page.fill('.bte-pop input[type=search]', 'zzz');
+  await page.keyboard.press('Escape');
+  ok(!(await page.isVisible(exportButton)), 'the export link is hidden when no row matches');
+
+  await open('export-edge-cases');
+  await page.locator('#bkmrk-t8 thead td:nth-child(2) .bte-fbtn').click();
+  await page.locator('.bte-list label:has-text("skip") input').uncheck();
+  await page.keyboard.press('Escape');
+  const [edgeDownload] = await Promise.all([page.waitForEvent('download'), page.click(exportButton)]);
+  const edge = await readWorkbook(edgeDownload);
+  eq(edge.rows, [['Code', 'Note', 'Amount'], ['007', '=1+1', 1200], ['12', 'a & b <c> "q"', 3.5], ['1e3', 'Zoë – 日本語']],
+    'leading zeros stay text, a formula-looking value stays text, markup characters and non-Latin text survive, numbers with separators become numbers');
+  eq(typeof edge.sheet.getCell('B2').value, 'string', 'a value starting with = is stored as text, not as a formula');
 
   // ---- editing --------------------------------------------------------------------------------
   const inEditor = async () => {

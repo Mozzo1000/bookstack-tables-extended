@@ -92,6 +92,23 @@ Click inside a table, then choose **Table > Table properties** (both editors). T
 - Lower them. If a removed cell has content, you are asked to confirm first.
 - Use undo. In the WYSIWYG Editor one undo returns to the previous size. In the new WYSIWYG, undo steps back one column or row at a time, and an **Updating table…** message shows while a large change is applied.
 
-## 8. Opting a page out
+## 8. Exporting the current view
+
+Use this table to check the Excel export. On the **Note** column, open the funnel and untick **skip**, so a filter is active. Select **Export current view** next to **Clear filters** and open the downloaded file in Excel or another spreadsheet program.
+
+- The sheet holds the header and the three visible rows, in the order shown, and not the **skip** row.
+- **Code** keeps `007` (leading zeros) and `1e3` as text.
+- **Note** shows `=1+1` as text, not as a formula.
+- **Amount** holds real numbers (1200 and 3.5) that a spreadsheet can add up.
+- The file is named after the page.
+
+| Code | Note        | Amount |
+| ---- | ----------- | -----: |
+| 007  | =1+1        | 1,200  |
+| 12   | a & b "q"   | 3.5    |
+| 1e3  | Zoë – 日本語 |        |
+| x    | skip        | -7     |
+
+## 9. Opting a page out
 
 To confirm the opt-out works, add the page tag name `tablesextended` with the value `off` to any page containing these tables. Every table on that page should then look and behave like a normal BookStack table.
