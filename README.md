@@ -17,6 +17,7 @@ A script for [BookStack](https://www.bookstackapp.com) that adds sorting, filter
 
 - Sort any column. Select a heading to sort ascending, again for descending, and a third time for the original order.
 - Filter any column from a spreadsheet-style menu with a search box and a checklist of the column's values. Filters in several columns combine.
+- Export the filtered view as an Excel file with the Export current view link that appears under the table while a filter is active. The file is created in your browser.
 - Scroll wide tables sideways instead of squeezing the columns.
 - Numbers, currencies and percentages sort as numbers. Text sorts without regard to case, and empty cells sort last.
 - Works automatically on the tables in your pages, in light and dark mode.
@@ -35,7 +36,7 @@ Select a heading to sort. The arrow shows the direction, and the funnel opens th
 
 ![A product table sorted by price, with sort arrows and funnel buttons in every heading](assets/sort.png)
 
-The funnel is highlighted while a filter is active. A line under the table shows how many rows match, with a link to clear all filters.
+The funnel is highlighted while a filter is active. A line under the table shows how many rows match, with links to clear all filters and to export the current view as an Excel file.
 
 ![The product table filtered to low stock and sold out products, with the row count line under it](assets/filter-active.png)
 
@@ -152,6 +153,7 @@ To change a default, define `window.BookStackTablesExtended` in a `<script>` tag
 | `minColumnWidth`      | `120`                           | Minimum column width in pixels before a table scrolls sideways.                              |
 | `minRows`             | `2`                             | Tables with fewer body rows get horizontal scrolling only, without sorting or filtering.     |
 | `maxListValues`       | `200`                           | A column with more distinct values than this shows the search box without the checklist.     |
+| `export`              | `true`                          | Shows the Export current view link next to Clear filters while a filter is active.           |
 | `skipSelector`        | `'.bte-skip, [data-bte="off"]'` | CSS selector for tables that are left completely alone.                                      |
 | `editor.largeTables`  | `true`                          | Turns the larger table support in the editors on or off.                                     |
 | `editor.maxColumns`   | `50`                            | Most columns that can be created in one step.                                                |
@@ -160,7 +162,7 @@ To change a default, define `window.BookStackTablesExtended` in a `<script>` tag
 
 Set `editor: {largeTables: false}` to leave both editors exactly as BookStack ships them.
 
-The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`, `search`, `selectAll`, `blanks`, `noValues`, `clearFilter`, `clear`, `showing(shown, total)`, `noMatches`, `advanced`, `removeContent`, `yes`, `no`, `updating`, `insertTable`, `columns`, `rows`, `insert` and `cancel`. Any key you leave out keeps its English text. Example of translating part of the interface:
+The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`, `search`, `selectAll`, `blanks`, `noValues`, `clearFilter`, `clear`, `exportView`, `showing(shown, total)`, `noMatches`, `advanced`, `removeContent`, `yes`, `no`, `updating`, `insertTable`, `columns`, `rows`, `insert` and `cancel`. Any key you leave out keeps its English text. Example of translating part of the interface:
 
 ```html
 <script>
@@ -194,6 +196,7 @@ The tag does not affect the editing features. Use `editor.largeTables` to turn t
 - Dates sort as text. Write them as `YYYY-MM-DD` if a date column needs to sort chronologically.
 - Sorting and filtering are not saved. They reset when the page is reloaded and are not part of BookStack's exports. Printing from the browser prints the table as it is currently sorted and filtered, without the filter buttons.
 - The filter search matches text only. Operators such as `>5` are not interpreted.
+- Export current view saves the rows that are visible, in the order shown, as a single Excel sheet named after the page. The link only appears while a filter is active. Plain numbers are saved as numbers. Values with a currency symbol or percent sign, leading zeros or trailing decimal zeros are saved as text, exactly as shown, and only the heading row is formatted (bold).
 - Tables that are added to the page after it has loaded are not enhanced.
 - Changing **Cols** or **Rows** in table properties always works from the end of the table. To remove a column or row in the middle, use the editor's own delete column and delete row actions.
 - In a table with merged cells, the Cols and Rows fields follow the editor's own insert and delete column and row commands, which may adjust merged cells.
