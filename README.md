@@ -246,3 +246,10 @@ docker compose down -v
 ### Automated tests
 
 The `tests` folder contains browser tests that run the script against BookStack releases in Docker. See [tests/README.md](tests/README.md) for how to run them.
+
+## Acknowledgements
+
+This project started from these BookStack feature requests and the workarounds people shared in them:
+
+- [Table auto-sort (#1518)](https://codeberg.org/bookstack/bookstack/issues/1518)
+- [Filter and sorting on columns within a table (#5743)](https://codeberg.org/bookstack/bookstack/issues/5743)
