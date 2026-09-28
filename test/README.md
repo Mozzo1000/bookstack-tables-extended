@@ -53,10 +53,11 @@ Screenshots and the full log of each run are saved to `screenshots/<version>/` i
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Table markup          | A header row stored as `<thead>` with `<td>` cells, a header row of `<th>` cells in `<tbody>`, and a table with no header markup |
 | Sorting               | Text (case-insensitive, natural order), numbers with thousands separators and currency, blanks last, ascending then descending then original order, keyboard use, `aria-sort` |
-| Filtering             | Case-insensitive match, several columns combined, row count line, no-match message, clearing filters                          |
+| Filtering             | Filter button per column, search inside the popover (case-insensitive), value checklist with counts and "(Select all)" mixed state, "(Blanks)", filters in several columns combined, row count line, no-match messages, "Clear filter" and "Clear filters", Escape and outside click closing the popover, popover kept inside the viewport |
 | Scrolling             | A 14-column table scrolls inside the page while the page itself does not scroll sideways                                      |
 | Edge cases            | Merged rows (`rowspan`), nested tables, links in headings, pages opted out with the `tablesextended` tag                       |
-| Editor                | The editor page contains none of the script's markup, and view pages log no console errors                                    |
+| Editing               | The editor screen contains none of the script's viewing markup. WYSIWYG Editor: the insert table dialog creates a 15 column table and caps a request for 80 columns at 50. New WYSIWYG: the custom size button creates a 15 column table, the dialog refuses 80 columns, 50 columns can be inserted, and Escape cancels. On releases before v25.12 the new editor's custom size button must be absent |
+| Console                | View pages log no console errors |
 
 Console errors raised on editor pages by BookStack itself (for example a Content Security Policy message on v23.05) are printed as informational and do not fail a run.
 

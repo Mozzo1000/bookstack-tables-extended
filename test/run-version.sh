@@ -67,6 +67,6 @@ fi
 
 OUT_DIR="$REPO/screenshots/$LABEL"
 rm -rf "$OUT_DIR" && mkdir -p "$OUT_DIR"
-SHOTS_DIR="$OUT_DIR" node e2e.js 2>&1 | tee "$OUT_DIR/results.txt" \
+EDITOR_MODE="$MODE" BS_VERSION="${LABEL%-lexical}" SHOTS_DIR="$OUT_DIR" node e2e.js 2>&1 | tee "$OUT_DIR/results.txt" \
   | grep -E 'FAIL|ALL PASSED|FAILED|body tag|editor:|editor-page|Error' | sed "s/^/[$LABEL] /"
 exit "${PIPESTATUS[0]}"
