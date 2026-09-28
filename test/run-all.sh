@@ -15,6 +15,16 @@ LEXICAL_VERSIONS=(
   version-v26.03.5 version-v26.05.5 version-v26.09
 )
 
+# Pause the development instance once for the whole batch (its data is kept) and restore it at the end.
+cd "$HERE/.." || exit 3
+DEV_WAS_RUNNING=
+if [ -n "$(docker compose ps -q --status running 2>/dev/null)" ]; then
+  DEV_WAS_RUNNING=1
+  echo "pausing the development instance (its data is kept)"
+  docker compose stop >/dev/null 2>&1
+fi
+export BTE_DEV_PAUSED=1
+
 failed=0
 for v in "${TINYMCE_VERSIONS[@]}"; do
   bash "$HERE/run-version.sh" "$v" || failed=$((failed + 1))
@@ -23,5 +33,9 @@ for v in "${LEXICAL_VERSIONS[@]}"; do
   bash "$HERE/run-version.sh" "$v" lexical || failed=$((failed + 1))
 done
 
+if [ -n "$DEV_WAS_RUNNING" ]; then
+  echo "starting the development instance again"
+  docker compose up -d >/dev/null 2>&1
+fi
 echo "=== done: $failed run(s) failed"
 exit $((failed > 0))

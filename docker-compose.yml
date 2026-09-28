@@ -1,15 +1,24 @@
-# Disposable BookStack instance for testing bookstack-tables-extended.js.
-# For local testing only: the credentials and APP_KEY below are throwaway values.
+# BookStack instance for developing and testing bookstack-tables-extended.js.
+# For local use only: the credentials and APP_KEY below are throwaway values.
 #
-#   docker compose up -d                                    # latest release
-#   BOOKSTACK_VERSION=version-v23.05 docker compose up -d   # a specific release
-#   docker compose down -v                                  # stop and wipe all data
+#   docker compose up -d                                    # start (latest release)
+#   BOOKSTACK_VERSION=version-v23.05 docker compose up -d   # start a specific release
+#   docker compose stop                                     # pause, keeping everything
+#   docker compose down                                     # remove containers, KEEP all data
+#   docker compose down -v                                  # remove containers AND wipe all data
+#
+# Pages, settings, users and uploads live in the named volumes "bookstack-config" and
+# "bookstack-db". They survive stop, down, restarts and reboots, and are only deleted by
+# "down -v" or "docker volume rm". Opening an older release on data created by a newer one
+# can fail; use "down -v" first when going backwards.
+#
+# The automated tests (test/run-version.sh) use a separate compose project with its own
+# volumes, so running them never touches the data of this instance.
 #
 # Open http://localhost:6875 and sign in with admin@admin.com / password.
 services:
   bookstack:
     image: lscr.io/linuxserver/bookstack:${BOOKSTACK_VERSION:-latest}
-    container_name: bookstack-tables-extended
     environment:
       - PUID=1000
       - PGID=1000
@@ -36,7 +45,6 @@ services:
 
   bookstack-db:
     image: lscr.io/linuxserver/mariadb:latest
-    container_name: bookstack-tables-extended-db
     environment:
       - PUID=1000
       - PGID=1000

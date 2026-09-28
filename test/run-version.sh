@@ -6,8 +6,12 @@
 #   bash test/run-version.sh version-v26.09 lexical
 #   PREPARE_ONLY=1 bash test/run-version.sh version-v26.09   # leave an instance running, skip tests
 #
-# Starts a fresh BookStack from ../docker-compose.yml (wiping any previous test data),
+# Starts a fresh BookStack from ../docker-compose.yml in its own compose project ("bte-test"),
 # installs the script into Custom HTML Head Content, creates fixture pages, and runs e2e.js.
+#
+# The tests never touch the data of your development instance. The development instance
+# (plain "docker compose up") is paused while a test runs, because both use port 6875, and it
+# is started again afterwards. Only the throwaway "bte-test" volumes are ever deleted.
 # Screenshots are saved to screenshots/<version>[-lexical]/ in the repository root.
 # Exit code: 0 all passed, 1 test failures, 3 environment problem.
 export MSYS_NO_PATHCONV=1   # stop Git Bash rewriting container paths on Windows
@@ -21,7 +25,9 @@ REPO="$(dirname "$HERE")"
 LABEL="${TAG_ARG#version-}"
 [ "$MODE" = lexical ] && LABEL="$LABEL-lexical"
 
-DB="docker exec bookstack-tables-extended-db mariadb -ubookstack -pbookstack-test bookstackapp"
+# Everything below runs in a separate compose project so its volumes are never the dev volumes.
+DC="docker compose -p bte-test"
+DB="$DC exec -T bookstack-db mariadb -ubookstack -pbookstack-test bookstackapp"
 
 # Install test dependencies once.
 if [ ! -d "$HERE/node_modules/playwright" ]; then
@@ -29,8 +35,29 @@ if [ ! -d "$HERE/node_modules/playwright" ]; then
 fi
 
 cd "$REPO" || exit 3
-docker compose down -v >/dev/null 2>&1
-BOOKSTACK_VERSION="$TAG_ARG" docker compose up -d >/dev/null 2>&1 || { echo "[$LABEL] docker compose up failed"; exit 3; }
+
+# Pause the development instance (data untouched) so port 6875 is free. When BTE_DEV_PAUSED is
+# set the caller (run-all.sh) already did this and will restart it.
+DEV_WAS_RUNNING=
+if [ -z "$BTE_DEV_PAUSED" ] && [ -n "$(docker compose ps -q --status running 2>/dev/null)" ]; then
+  DEV_WAS_RUNNING=1
+  echo "[$LABEL] pausing the development instance (its data is kept)"
+  docker compose stop >/dev/null 2>&1
+fi
+cleanup() {
+  # PREPARE_ONLY keeps the test instance up for manual use, so the dev instance stays paused.
+  if [ -z "$PREPARE_ONLY" ]; then
+    $DC down -v >/dev/null 2>&1
+    if [ -n "$DEV_WAS_RUNNING" ]; then
+      echo "[$LABEL] starting the development instance again"
+      docker compose up -d >/dev/null 2>&1
+    fi
+  fi
+}
+trap cleanup EXIT
+
+$DC down -v >/dev/null 2>&1
+BOOKSTACK_VERSION="$TAG_ARG" $DC up -d >/dev/null 2>&1 || { echo "[$LABEL] docker compose up failed"; exit 3; }
 
 # Wait until the migrations have created the admin user and the web app answers.
 for _ in $(seq 1 90); do
@@ -41,7 +68,7 @@ for _ in $(seq 1 90); do
 done
 [ "${users:-0}" -ge 1 ] || { echo "[$LABEL] BookStack never became ready"; exit 3; }
 sleep 5
-echo "[$LABEL] running BookStack $(docker exec bookstack-tables-extended cat /app/www/version)"
+echo "[$LABEL] running BookStack $($DC exec -T bookstack cat /app/www/version)"
 
 # The settings table gained a `type` column in later releases, so try both shapes.
 set_setting() {
@@ -50,7 +77,7 @@ set_setting() {
 }
 
 # Throwaway API token (id testtokenid, secret testsecret) used by fixtures.js.
-HASH=$(docker exec bookstack-tables-extended php -r 'echo password_hash("testsecret", PASSWORD_BCRYPT);')
+HASH=$($DC exec -T bookstack php -r 'echo password_hash("testsecret", PASSWORD_BCRYPT);')
 $DB -e "insert into api_tokens (name, token_id, secret, user_id, expires_at, created_at, updated_at) values ('bte','testtokenid','$HASH',1,'2099-01-01',now(),now());"
 
 set_setting app-custom-head '<script src="/bookstack-tables-extended.js"></script>'
@@ -61,7 +88,8 @@ node fixtures.js >/dev/null || { echo "[$LABEL] creating fixtures failed"; exit 
 
 # PREPARE_ONLY=1 leaves the prepared instance running for manual testing, without running the tests.
 if [ -n "$PREPARE_ONLY" ]; then
-  echo "[$LABEL] instance ready at http://localhost:6875 (admin@admin.com / password); fixture book: Table Tests"
+  echo "[$LABEL] test instance ready at http://localhost:6875 (admin@admin.com / password); fixture book: Table Tests"
+  echo "[$LABEL] remove it with: docker compose -p bte-test down -v, then start your dev instance with: docker compose up -d"
   exit 0
 fi
 
