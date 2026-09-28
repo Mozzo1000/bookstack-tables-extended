@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const BASE = process.env.BASE || 'http://localhost:6875';
+const LEXROOT = '[component="wysiwyg-editor"] [contenteditable]';
 const MODE = process.env.EDITOR_MODE || 'tinymce';
 const OUT = process.env.SHOTS_DIR || path.join(__dirname, '..', 'screenshots', 'adhoc');
 fs.mkdirSync(OUT, {recursive: true});
@@ -314,6 +315,81 @@ const eq = (a, b, m) => {
     const button = page.locator('button[title="Insert table (custom size)"], button[aria-label="Insert table (custom size)"]');
     if (LEXICAL_API) {
       eq(await button.count(), 1, 'toolbar has the custom size table button');
+
+      // Existing table: the properties modal gets Cols and Rows (the fixture table is 4 columns by 7 rows).
+      const tableSize = () => page.$eval(LEXROOT + ' table', t => `${t.rows[0].cells.length}x${t.rows.length}`);
+      // Wait for the size, then for the "Updating table" overlay to go away so the next step does not race it.
+      const waitSize = expected => page.waitForFunction(([root, want]) => {
+        const t = document.querySelector(root + ' table');
+        return t && `${t.rows[0].cells.length}x${t.rows.length}` === want && !document.querySelector('.bte-busy');
+      }, [LEXROOT, expected], {timeout: 30000}).then(() => true, () => false);
+      const openProperties = async () => {
+        await page.click(LEXROOT + ' table td >> nth=0');
+        await page.locator('button[title="Table"]').first().click();
+        await page.waitForTimeout(300);
+        await page.locator('button[title="Table properties"]').first().click();
+        await page.waitForSelector('.editor-modal-wrapper');
+        await page.waitForTimeout(300);
+      };
+      const saveSize = async (cols, rows) => {
+        await page.fill('.editor-modal-wrapper input[name="bte_cols"]', String(cols));
+        await page.fill('.editor-modal-wrapper input[name="bte_rows"]', String(rows));
+        await page.click('.editor-modal-wrapper button[type="submit"], .editor-modal-wrapper .editor-form-actions button:last-child');
+      };
+      eq(await tableSize(), '4x7', 'the fixture table starts at 4 columns by 7 rows');
+      await openProperties();
+      eq(await page.$$eval('.editor-modal-wrapper input[name="bte_cols"], .editor-modal-wrapper input[name="bte_rows"]', i => i.map(x => x.value)), ['4', '7'], 'table properties shows the current Cols and Rows');
+      eq(await page.$$eval('.editor-modal-wrapper .editor-form-field-label', l => l.map(x => x.textContent).filter(t => t === 'Cols' || t === 'Rows')), ['Cols', 'Rows'], 'Cols and Rows appear once each');
+      await shot('editor-table-properties');
+      await saveSize(6, 9);
+      ok(await waitSize('6x9'), 'growing an existing table through its properties works');
+      eq(await page.$eval(LEXROOT + ' table', t => [t.rows[0].cells[0].textContent, t.rows[1].cells[0].textContent]), ['Name', 'Delta'], 'existing cell content is kept when growing');
+
+      await openProperties();
+      await saveSize(3, 3);
+      await page.waitForSelector('.bte-modal', {timeout: 5000});
+      ok((await page.textContent('.bte-modal')).includes('removes cells that contain content'), 'shrinking cells that hold content asks for confirmation');
+      await page.click('.bte-modal button:has-text("No")');
+      await page.waitForTimeout(500);
+      eq(await tableSize(), '6x9', 'declining leaves the table unchanged');
+      await openProperties();
+      await saveSize(3, 3);
+      await page.waitForSelector('.bte-modal');
+      await page.click('.bte-modal button:has-text("Yes")');
+      ok(await waitSize('3x3'), 'confirming applies the smaller size');
+      let undoPresses = 0;
+      while ((await tableSize()) !== '6x9' && undoPresses < 15) {
+        await page.click(LEXROOT + ' table td >> nth=0');
+        await page.keyboard.press('Control+z');
+        await page.waitForTimeout(150);
+        undoPresses++;
+      }
+      eq(await tableSize(), '6x9', `undo restores the previous size (${undoPresses} steps, one per removed column or row)`);
+
+      // The visual grid gets an "Advanced..." button under its size display.
+      const openGrid = async () => {
+        await page.click(LEXROOT + ' p');
+        await page.locator('button[title="Table"]').first().click();
+        await page.waitForTimeout(300);
+        await page.hover('button:has-text("Insert")');
+        await page.waitForSelector('.editor-table-creator');
+        await page.waitForTimeout(300);
+      };
+      await openGrid();
+      eq(await page.$$eval('.editor-table-creator .bte-advanced', b => b.length), 1, 'one "Advanced..." button under the grid size display');
+      ok(await page.$eval('.editor-table-creator .bte-advanced', b => b.previousElementSibling.classList.contains('editor-table-creator-display')), '"Advanced..." sits right below the size display');
+      await page.hover('.editor-table-creator-cell[data-rows="1"][data-columns="8"]');
+      eq(await page.textContent('.editor-table-creator-display'), '1 x 8', 'the size display still follows the pointer');
+      await shot('editor-table-menu');
+      await page.click('.editor-table-creator .bte-advanced');
+      await page.waitForSelector('.bte-modal');
+      ok(!(await page.$eval('.editor-table-creator', e => e.offsetParent !== null).catch(() => false)), 'the Table menu closes when the dialog opens');
+      await page.keyboard.press('Escape');
+      ok(await page.$('.bte-modal') === null, 'Escape closes the dialog without inserting');
+      await openGrid();
+      await page.click('.editor-table-creator-cell[data-rows="2"][data-columns="3"]');
+      await page.waitForTimeout(600);
+      ok((await page.$$eval(LEXROOT + ' table', ts => ts.map(t => `${t.rows[0].cells.length}x${t.rows.length}`))).includes('3x2'), 'clicking the grid still inserts a table');
       const sizes = () => page.$$eval('[component="wysiwyg-editor"] [contenteditable] table', ts => ts.map(x => `${x.rows[0].cells.length}x${x.rows.length}`));
       const insertViaDialog = async (cols, rows) => {
         await page.click('[component="wysiwyg-editor"] [contenteditable] p, [component="wysiwyg-editor"] [contenteditable] td');
