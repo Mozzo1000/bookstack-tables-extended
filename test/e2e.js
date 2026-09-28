@@ -204,24 +204,106 @@ const eq = (a, b, m) => {
     await page.goto(`${BASE}/books/table-tests/page/tiny-thead-td/edit`);
     await page.waitForFunction(() => window.tinymce && window.tinymce.activeEditor && window.tinymce.activeEditor.initialized, null, {timeout: 30000});
     ok(await inEditor() === 0, 'no viewing-mode markup inside the editor');
-    const insertViaDialog = async (cols, rows) => {
+    const dims = () => page.evaluate(() => {
+      const t = window.tinymce.activeEditor.dom.select('table')[0];
+      return t ? {cols: t.rows[0].cells.length, rows: t.rows.length} : null;
+    });
+    const openPicker = async () => {
       await page.evaluate(() => window.tinymce.activeEditor.setContent('<p>x</p>'));
       await page.locator('.tox-tbtn[aria-label="Table"]').first().click();
       await page.waitForTimeout(300);
       await page.locator('.tox-collection__item:has-text("Table")').first().click();
+      await page.waitForSelector('.tox-insert-table-picker');
+    };
+    const insertViaAdvanced = async (cols, rows) => {
+      await openPicker();
+      await page.click('.bte-advanced');
       await page.waitForSelector('.tox-dialog');
       const inputs = page.locator('.tox-dialog input[type=text]');
       await inputs.nth(0).fill(String(cols));
       await inputs.nth(1).fill(String(rows));
       await page.click('.tox-dialog button:has-text("Save")');
       await page.waitForTimeout(400);
-      return page.evaluate(() => {
-        const t = window.tinymce.activeEditor.dom.select('table')[0];
-        return {cols: t.rows[0].cells.length, rows: t.rows.length};
-      });
+      return dims();
     };
-    eq(await insertViaDialog(15, 3), {cols: 15, rows: 3}, 'insert table dialog creates a 15 column table');
-    eq(await insertViaDialog(80, 2), {cols: 50, rows: 2}, 'columns are capped at the configured maximum (50)');
+
+    // The visual 10 x 10 picker is kept, with an "Advanced..." button under the size label.
+    await openPicker();
+    eq(await page.$$eval('.tox-insert-table-picker > div', d => d.length), 100, 'the 10 x 10 grid picker is still offered');
+    eq(await page.$$eval('.bte-advanced', b => b.length), 1, 'one "Advanced..." button under the size label');
+    ok(await page.$eval('.bte-advanced', b => b.previousElementSibling.classList.contains('tox-insert-table-picker') && b.getBoundingClientRect().top >= b.previousElementSibling.getBoundingClientRect().bottom - 1), '"Advanced..." sits below the picker');
+    await page.hover('.tox-insert-table-picker > div:nth-child(8)');
+    eq(await page.textContent('.tox-insert-table-picker__label'), '8x1', 'the size label still follows the pointer');
+    await shot('editor-table-menu');
+    await page.click('.tox-insert-table-picker > div:nth-child(8)');
+    await page.waitForTimeout(400);
+    eq(await dims(), {cols: 8, rows: 1}, 'clicking the grid still inserts a table');
+
+    await openPicker();
+    eq(await page.$$eval('.bte-advanced', b => b.length), 1, '"Advanced..." is added again each time the menu opens');
+    await page.click('.bte-advanced');
+    await page.waitForSelector('.tox-dialog');
+    ok(await page.$('.tox-insert-table-picker') === null, 'the Table menu closes when the dialog opens');
+    await shot('editor-table-dialog');
+    await page.click('.tox-dialog button:has-text("Cancel")');
+    await page.waitForTimeout(300);
+    eq(await dims(), null, 'cancelling the dialog inserts nothing');
+
+    eq(await insertViaAdvanced(15, 3), {cols: 15, rows: 3}, 'the Advanced dialog creates a 15 column table');
+    eq(await insertViaAdvanced(80, 2), {cols: 50, rows: 2}, 'columns are capped at the configured maximum (50)');
+
+    // Existing tables: the properties dialog gets Cols and Rows.
+    const cellText = (r, c) => page.evaluate(([r, c]) => {
+      const t = window.tinymce.activeEditor.dom.select('table')[0];
+      return t.rows[r] && t.rows[r].cells[c] ? t.rows[r].cells[c].textContent : null;
+    }, [r, c]);
+    const openProperties = async () => {
+      await page.evaluate(() => { const ed = window.tinymce.activeEditor; ed.selection.setCursorLocation(ed.dom.select('table td')[0], 0); });
+      await page.locator('.tox-tbtn[aria-label="Table"]').first().click();
+      await page.waitForTimeout(300);
+      await page.locator('.tox-collection__item:has-text("Table properties")').first().click();
+      await page.waitForSelector('.tox-dialog');
+    };
+    const setSizeAndSave = async (cols, rows) => {
+      const inputs = page.locator('.tox-dialog input[type=text]');
+      await inputs.nth(0).fill(String(cols));
+      await inputs.nth(1).fill(String(rows));
+      await page.click('.tox-dialog button:has-text("Save")');
+      await page.waitForTimeout(600);
+    };
+    await page.evaluate(() => window.tinymce.activeEditor.setContent('<table style="width: 100%;"><tbody><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></tbody></table>'));
+    await openProperties();
+    eq(await page.$$eval('.tox-dialog input[type=text]', i => i.slice(0, 2).map(x => x.value)), ['2', '2'], 'table properties shows the current Cols and Rows');
+    eq(await page.$$eval('.tox-dialog .tox-form__group > label', l => l.map(x => x.textContent).filter(t => t === 'Cols' || t === 'Rows')), ['Cols', 'Rows'], 'Cols and Rows appear once each');
+    await shot('editor-table-properties');
+    await setSizeAndSave(5, 4);
+    eq(await dims(), {cols: 5, rows: 4}, 'growing an existing table through its properties works');
+    eq([await cellText(0, 0), await cellText(1, 1)], ['a', 'd'], 'existing cell content is kept when growing');
+    eq(await page.evaluate(() => window.tinymce.activeEditor.dom.select('table')[0].style.width), '100%', 'the other table properties are still applied');
+
+    await openProperties();
+    await setSizeAndSave(3, 2);
+    eq(await dims(), {cols: 3, rows: 2}, 'shrinking empty cells needs no confirmation');
+
+    await page.evaluate(() => { const t = window.tinymce.activeEditor.dom.select('table')[0]; t.rows[1].cells[2].textContent = 'keep me'; });
+    await openProperties();
+    await setSizeAndSave(2, 1);
+    ok((await page.textContent('.tox-dialog')).includes('removes cells that contain content'), 'shrinking cells that hold content asks for confirmation');
+    await page.click('.tox-dialog button:has-text("No")');
+    await page.waitForTimeout(400);
+    eq(await dims(), {cols: 3, rows: 2}, 'declining leaves the table unchanged');
+    await openProperties();
+    await setSizeAndSave(2, 1);
+    await page.click('.tox-dialog button:has-text("Yes")');
+    await page.waitForTimeout(600);
+    eq(await dims(), {cols: 2, rows: 1}, 'confirming applies the smaller size');
+    await page.evaluate(() => window.tinymce.activeEditor.undoManager.undo());
+    await page.waitForTimeout(300);
+    eq(await dims(), {cols: 3, rows: 2}, 'one undo restores the previous size');
+
+    await openProperties();
+    await setSizeAndSave(500, 3);
+    eq(await dims(), {cols: 50, rows: 3}, 'Cols in the properties dialog is capped at the configured maximum (50)');
     await shot('editor');
   } else {
     console.log('\n== editor: new WYSIWYG (Lexical)');
