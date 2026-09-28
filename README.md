@@ -1,31 +1,81 @@
 # BookStack Tables Extended
 
-A script for [BookStack](https://www.bookstackapp.com) that adds sorting, Excel-style column filtering and horizontal scrolling to the tables on your pages, and lets editors create tables with more than 10 columns.
+A script for [BookStack](https://www.bookstackapp.com) that adds sorting, filtering to tables and lets editors create tables with more than 10 columns.
 
-> **Disclaimer**
->
-> Custom HTML head scripts like this one are **not officially supported by BookStack**. They depend on BookStack's internal page markup and styling, which is not a stable interface, so this script **may break without notice in future BookStack releases**.
+![A product table sorted by price with the spreadsheet-style filter menu open on the Status column](assets/filter-menu.png)
+
+> [!WARNING]
+> Custom HTML head scripts like this one are not officially supported by BookStack. They depend on BookStack's internal page markup and styling, which is not a stable interface, so this script may break without notice in future BookStack releases.
 >
 > Only use this script with the BookStack versions listed under [Supported BookStack versions](#supported-bookstack-versions). Other versions have not been tested and are not supported by this project, and issues raised for unsupported versions will not be accepted.
 >
-> **Never report problems with this script to the BookStack project.** BookStack does not support it. If BookStack behaves unexpectedly, remove the script from Custom HTML Head Content and check again before contacting BookStack about anything.
+> Never report problems with this script to the BookStack project. BookStack does not support it. If BookStack behaves unexpectedly, remove the script from Custom HTML Head Content and check again before contacting BookStack about anything.
 
 ## Features
 
-**When viewing a page**
+### Viewing a page
 
-- **Sort by column.** Select a column heading to sort ascending, select it again for descending, and a third time to return to the original order. Headings are also reachable with the keyboard (Tab, then Enter or Space).
-- **Filter by column.** Each heading has a small funnel button. It opens a menu with sort options, a search box and a checklist of the values in that column, like a spreadsheet filter. The search matches text anywhere in a cell and ignores case. Filters in several columns combine. The funnel is highlighted while a filter is active, and a line under the table shows how many rows match, with a link to clear all filters.
-- **Horizontal scroll.** Each column keeps a minimum width (120 px by default). Tables with more columns than fit on screen scroll sideways inside the page instead of squeezing every column.
-- **Understands your data.** Columns of numbers sort numerically, including values like `1,200`, `$5.50` and `12%`. Text sorts alphabetically without regard to case, and `Item 9` sorts before `Item 10`. Empty cells always sort last.
-- **Display only.** Sorting and filtering change what you see in the browser. They never change the saved page, and they reset when the page reloads.
-- **Works on every table automatically.** Every table in viewed page content is enhanced, whether the page was written in the WYSIWYG Editor or the new WYSIWYG. Tables inside other tables are left alone.
-- **Follows your theme.** Colours come from your BookStack theme, so the script works in light and dark mode.
+- Sort any column. Select a heading to sort ascending, again for descending, and a third time for the original order.
+- Filter any column from a spreadsheet-style menu with a search box and a checklist of the column's values. Filters in several columns combine.
+- Scroll wide tables sideways instead of squeezing the columns.
+- Numbers, currencies and percentages sort as numbers. Text sorts without regard to case, and empty cells sort last.
+- Works automatically on the tables in your pages, in light and dark mode.
+- Sorting and filtering only change what you see. The saved page is never modified, and they reset when the page reloads.
 
-**When editing a page**
+### Editing a page
 
-- **Tables wider than 10 columns.** BookStack's editors offer a 10 by 10 grid for new tables. With this script, both editors keep that grid and add an **Advanced…** button under its size display that asks for the number of columns and rows. The new WYSIWYG also gets a toolbar button for the same purpose. The largest table that can be created in one step is configurable (50 columns by 200 rows by default). See [Editors](#editors).
-- **Changing the size of an existing table.** In both editors, **Table properties** also shows **Cols** and **Rows**, filled in with the table's current size. Changing them adds or removes columns and rows at the end of the table.
+- Create tables with more than 10 columns. Both editors keep their 10 by 10 grid and add an Advanced… button for any number of columns and rows, up to a limit you can configure. See [Editing tables](#editing-tables).
+- Change the number of columns and rows of an existing table from Table properties.
+
+## Screenshots
+
+### Sort and filter
+
+Select a heading to sort. The arrow shows the direction, and the funnel opens the filter menu.
+
+![A product table sorted by price, with sort arrows and funnel buttons in every heading](assets/sort.png)
+
+The funnel is highlighted while a filter is active. A line under the table shows how many rows match, with a link to clear all filters.
+
+![The product table filtered to low stock and sold out products, with the row count line under it](assets/filter-active.png)
+
+### Horizontal scroll
+
+Tables with many columns scroll sideways inside the page instead of squeezing every column.
+
+![A twelve column team directory scrolled sideways, with the scrollbar visible under the table](assets/horizontal-scroll.png)
+
+<details>
+<summary>Dark mode</summary>
+
+Colours follow your BookStack theme.
+
+![The filter menu open on the Status column in BookStack's dark mode](assets/filter-menu-dark.png)
+
+</details>
+
+### Creating tables wider than 10 columns
+
+In the WYSIWYG Editor, the Table menu keeps its 10 by 10 grid and gets an **Advanced…** button under the size.
+
+![The WYSIWYG Editor's Table menu with the 10 by 10 grid and an Advanced button under the size](assets/editor-picker.png)
+
+**Advanced…** asks for the number of columns and rows.
+
+<img src="assets/editor-advanced-dialog.png" width="482" alt="The table dialog with 15 columns and 4 rows entered">
+
+The result is a table with as many columns as you asked for, up to the configured maximum.
+
+![A table with 15 columns in the WYSIWYG Editor](assets/editor-wide-table.png)
+
+<details>
+<summary>New WYSIWYG (beta)</summary>
+
+The new WYSIWYG has the same **Advanced…** button under its grid, and an extra toolbar button next to the table button.
+
+![The new WYSIWYG's Table menu with the 10 by 10 grid, an Advanced button under the size, and the custom size button in the toolbar](assets/new-editor-picker.png)
+
+</details>
 
 ## Supported BookStack versions
 
@@ -33,35 +83,38 @@ This script is tested against the exact BookStack releases below. **Use it only 
 
 | BookStack release | Viewing pages from either editor | Larger tables in the WYSIWYG Editor | Larger tables in the new WYSIWYG (beta) |
 | ----------------- | -------------------------------- | ----------------------------------- | --------------------------------------- |
-| v23.05            | Supported                        | Not supported                       | Not available in this release           |
-| v23.12.3          | Supported                        | Not supported                       | Not available in this release           |
-| v24.02.3          | Supported                        | Not supported                       | Not available in this release           |
+| v23.05            | Supported                        | Supported                           | Not available in this release           |
+| v23.12.3          | Supported                        | Supported                           | Not available in this release           |
+| v24.02.3          | Supported                        | Supported                           | Not available in this release           |
 | v26.09            | Supported                        | Supported                           | Supported                               |
 
 Releases that are not listed are unsupported, including every other release between and after these, and every release older than v23.05.
 
 When a new BookStack release comes out, keep running the version you have listed here until this table lists the new release.
 
-## Editors
+## Editing tables
 
-BookStack has two visual editors. Choose the default under **Settings > Customization > Default Page Editor**, or switch a single page with **Switch to new WYSIWYG** while editing it.
+The script adds two things to BookStack's visual editors, the WYSIWYG Editor and the new WYSIWYG (beta). Viewing a page works the same whichever editor wrote it. You can choose the default editor under **Settings > Customization > Default Page Editor**.
 
-The script works with pages saved by either editor, and viewing behaves identically. While editing, the script leaves the page content alone. The only change to the editing screen is the table size feature described below.
+### Create a table with any number of columns
 
-| | WYSIWYG Editor | new WYSIWYG (beta) |
-| --- | --- | --- |
-| Available in | All supported releases | v24.10.3 and later |
-| How a header row is stored | A separate header section. The script uses the last row of that section as the headings. | Heading cells in the first row of the table. The script uses the first row as the headings. |
-| Tables without a header row | The first row is used as the headings. | The first row is used as the headings. |
-| Creating a table | **Table > Table** shows the usual 10 by 10 grid. An **Advanced…** button under the size label opens a dialog asking for columns and rows. | The usual 10 by 10 grid stays. An **Advanced…** button under its size display opens a dialog asking for columns and rows. A second toolbar button, **Insert table (custom size)**, next to the built-in table button opens the same dialog. |
-| Size limit when creating | Columns and rows are capped at the configured maximum. | The dialog refuses sizes above the configured maximum. |
-| Changing the size of an existing table | **Table > Table properties** has **Cols** and **Rows**. Growing adds empty columns and rows at the end. Shrinking removes them from the end and asks first if any removed cell has content. The whole change is one undo step. | **Table > Table properties** has **Cols** and **Rows**, and works the same way. The change is made one column or row at a time, with an **Updating table…** message shown while it runs, so a large change takes a moment. Undo steps back one column or row at a time. |
-| Requires | Nothing extra | The editor hooks that BookStack provides from v25.12 onwards, for every feature in this table. |
-| Viewing | Identical | Identical |
+1. Open the table menu. In the WYSIWYG Editor, choose **Table > Table**. In the new WYSIWYG, choose **Table > Insert**.
+2. Pick a size on the grid for a small table, as usual. To go bigger, select **Advanced…** under the size and type the number of columns and rows.
 
-Columns and rows can also be added to an existing table at any time with the editor's own insert column and insert row actions. The maximum applies only to creating a table in one step.
+The new WYSIWYG also has an **Insert table (custom size)** button in the toolbar, next to the table button, which opens the same dialog.
 
-Pages written in the Markdown editor are not covered by this project's tests.
+Tables created this way can have up to 50 columns and 200 rows. You can change these limits in [Configuration](#configuration).
+
+### Change the size of an existing table
+
+1. Click inside the table and open **Table properties**.
+2. Change **Cols** and **Rows**, then select **Save**.
+
+Columns and rows are added or removed at the end of the table. If making the table smaller would remove cells that contain content, you are asked to confirm first.
+
+In the WYSIWYG Editor, one undo restores the previous size. In the new WYSIWYG, a large change takes a moment, and undo steps back one column or row at a time.
+
+The features for the new WYSIWYG need BookStack v25.12 or later. See [Supported BookStack versions](#supported-bookstack-versions).
 
 ## Installation
 
@@ -127,46 +180,45 @@ The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`
 
 ## Turning the script off for a page
 
-Add a tag to the page with the name `tablesextended` and the value `off`. The script leaves every table on that page alone when the page is viewed.
-
-BookStack removes punctuation from tag names when it builds the page's CSS classes, so the name has no hyphen. A tag named `tablesextendedoff` with no value has the same effect.
+Add a [tag](https://www.bookstackapp.com/docs/user/tags/) to the page with the name `tablesextended` and the value `off`. The script leaves every table on that page alone when the page is viewed. A tag named `tablesextendedoff` with no value has the same effect.
 
 The tag does not affect the editing features. Use `editor.largeTables` to turn those off.
-
-## How tables are read
-
-- **Header row.** If the table has a header section, its last row is the header. Otherwise the first row is the header.
-- **Body rows.** Every other row, except rows in a table footer, can be sorted and filtered.
-- **Numbers.** A column sorts numerically when every non-empty cell in it is a number. Currency symbols (`$ € £ ¥`), `%` and thousands separators (`1,200`) are accepted. A dot is the decimal separator.
-- **Dates.** Dates sort as text, so use the `YYYY-MM-DD` format if a date column needs to sort chronologically.
-- **Filter checklist.** Values are compared as the text shown in the cell. Empty cells appear as **(Blanks)**.
 
 ## Known limitations
 
 - Tables with merged cells that span several rows (`rowspan`) get horizontal scrolling only. Sorting and filtering are switched off for them.
 - In a cell that spans several columns (`colspan`), the cell belongs to the first column it covers for sorting and filtering.
 - A table without a designated header row uses its first row as the header, so that row cannot be sorted or filtered as data.
+- Tables inside other tables are left alone.
 - Numbers written with a decimal comma (`1,5`) are not read as numbers.
-- Sorting and filtering are not saved. They reset when the page is reloaded and do not appear in exports or printouts.
+- Dates sort as text. Write them as `YYYY-MM-DD` if a date column needs to sort chronologically.
+- Sorting and filtering are not saved. They reset when the page is reloaded and are not part of BookStack's exports. Printing from the browser prints the table as it is currently sorted and filtered, without the filter buttons.
 - The filter search matches text only. Operators such as `>5` are not interpreted.
 - Tables that are added to the page after it has loaded are not enhanced.
 - Changing **Cols** or **Rows** in table properties always works from the end of the table. To remove a column or row in the middle, use the editor's own delete column and delete row actions.
 - In a table with merged cells, the Cols and Rows fields follow the editor's own insert and delete column and row commands, which may adjust merged cells.
 - In the new WYSIWYG, the size limit is enforced by the dialog. A table inserted some other way, for example by pasting, is not limited.
 
-## Testing with Docker
+## Development
 
-`docker-compose.yml` starts a disposable BookStack with the script already served from its web root. Nothing in it is meant for production use.
+The `tests` folder holds the Docker setup, ready-made tables for testing by hand, and the automated tests. See [tests/README.md](tests/README.md).
+
+### Testing with Docker
+
+`tests/docker-compose.yml` starts a BookStack for trying the script, with the script already served from its web root. Pages, settings and users are kept in Docker volumes, so they survive restarts. Nothing in it is meant for production use.
+
+Run the Docker commands in this section from the `tests` folder:
 
 ```sh
+cd tests
 docker compose up -d
 ```
 
 1. Open <http://localhost:6875> and sign in with `admin@admin.com` and `password`. The first start takes a minute while the database is prepared.
 2. Go to **Settings > Customization** and set **Custom HTML Head Content** to `<script src="/bookstack-tables-extended.js"></script>`.
-3. Create a page with a table and view it. The file `tables-test.md` contains ready-made Markdown tables to paste into a page.
+3. Create a page with a table and view it. The file `tests/tables-test.md` contains ready-made Markdown tables to paste into a page.
 
-The container reads `bookstack-tables-extended.js` directly from this folder, so edits apply the next time a page loads (hard-refresh to bypass the browser cache).
+The container reads `bookstack-tables-extended.js` directly from the repository root, so edits apply the next time a page loads (hard-refresh to bypass the browser cache).
 
 To test a specific BookStack release, set `BOOKSTACK_VERSION` to an image tag from the [linuxserver/bookstack tag list](https://github.com/linuxserver/docker-bookstack/pkgs/container/bookstack):
 
@@ -174,12 +226,20 @@ To test a specific BookStack release, set `BOOKSTACK_VERSION` to an image tag fr
 BOOKSTACK_VERSION=version-v23.05 docker compose up -d
 ```
 
-To remove the containers and all test data:
+An older release can fail to start on data that a newer release created. Run `docker compose down -v` first when you go back to an older release.
+
+To remove the containers but keep your data:
+
+```sh
+docker compose down
+```
+
+To remove the containers and all data:
 
 ```sh
 docker compose down -v
 ```
 
-## Automated tests
+### Automated tests
 
-The `test` folder contains browser tests that run the script against each supported BookStack release. See [test/README.md](test/README.md) for how to run them.
+The `tests` folder contains browser tests that run the script against BookStack releases in Docker. See [tests/README.md](tests/README.md) for how to run them.
