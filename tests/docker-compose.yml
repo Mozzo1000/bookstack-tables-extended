@@ -1,5 +1,6 @@
 # BookStack instance for developing and testing bookstack-tables-extended.js.
 # For local use only: the credentials and APP_KEY below are throwaway values.
+# Run these commands from this folder (tests/), where this file lives.
 #
 #   docker compose up -d                                    # start (latest release)
 #   BOOKSTACK_VERSION=version-v23.05 docker compose up -d   # start a specific release
@@ -12,10 +13,12 @@
 # "down -v" or "docker volume rm". Opening an older release on data created by a newer one
 # can fail; use "down -v" first when going backwards.
 #
-# The automated tests (test/run-version.sh) use a separate compose project with its own
+# The automated tests (run-version.sh in this folder) use a separate compose project with its own
 # volumes, so running them never touches the data of this instance.
 #
 # Open http://localhost:6875 and sign in with admin@admin.com / password.
+# The project name is set here so the data volumes keep the same names wherever this file lives.
+name: bookstack-tables-extended
 services:
   bookstack:
     image: lscr.io/linuxserver/bookstack:${BOOKSTACK_VERSION:-latest}
@@ -35,7 +38,7 @@ services:
       # The script is served from the web root, so the Custom HTML Head Content
       # only needs: <script src="/bookstack-tables-extended.js"></script>
       # Edits to the file apply on the next page load (hard refresh to bypass cache).
-      - ./bookstack-tables-extended.js:/app/www/public/bookstack-tables-extended.js:ro
+      - ../bookstack-tables-extended.js:/app/www/public/bookstack-tables-extended.js:ro
     ports:
       - "6875:80"
     depends_on:

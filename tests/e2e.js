@@ -1,5 +1,5 @@
 // End-to-end checks for bookstack-tables-extended.js against a running BookStack.
-// Run through run-version.sh (or see test/README.md).
+// Run through run-version.sh (or see tests/README.md).
 // Environment: BASE, SHOTS_DIR, EDITOR_MODE (tinymce|lexical), BS_VERSION (for example 26.03.5).
 const {chromium} = require('playwright');
 const fs = require('fs');
@@ -189,6 +189,11 @@ const eq = (a, b, m) => {
   await open('opted-out');
   ok(await page.$('.bte-scroll') === null && await page.$('.bte-fbtn') === null, 'no enhancement when tag tablesextended=off');
   await shot('opted-out');
+  console.log('   body tag classes:', JSON.stringify(await page.$eval('body', b => [...b.classList].filter(c => c.startsWith('tag-')))));
+
+  console.log('\n== opted out via a tag without a value');
+  await open('opted-out-name-only');
+  ok(await page.$('.bte-scroll') === null && await page.$('.bte-fbtn') === null, 'no enhancement when the page has the tag tablesextendedoff with no value');
   console.log('   body tag classes:', JSON.stringify(await page.$eval('body', b => [...b.classList].filter(c => c.startsWith('tag-')))));
 
   // ---- editing --------------------------------------------------------------------------------

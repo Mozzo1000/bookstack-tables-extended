@@ -48,6 +48,7 @@ const linkHeader = `<table id="bkmrk-t7"><thead><tr><td><a href="#x">Linked head
     await page('Nested', nested);
     await page('Link header', linkHeader);
     await page('Opted out', tinymce, [{name: 'tablesextended', value: 'off'}]);
+    await page('Opted out (name only)', tinymce, [{name: 'tablesextendedoff', value: ''}]);
     console.log('fixtures created');
 })().catch(err => {
     console.error(err);

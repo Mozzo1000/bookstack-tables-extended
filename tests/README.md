@@ -1,6 +1,34 @@
 # Tests
 
-End-to-end tests that run `bookstack-tables-extended.js` in a real browser against real BookStack releases. Each run starts a fresh, disposable BookStack in Docker, installs the script, creates fixture pages, and checks sorting, filtering, scrolling and edge cases.
+Everything for developing and testing the script is in this folder: a Docker setup that runs BookStack, ready-made tables for testing by hand, and the automated browser tests.
+
+## What is in this folder
+
+| File | Purpose |
+| ---- | ------- |
+| `docker-compose.yml` | Starts BookStack and its database for trying the script by hand. It serves `bookstack-tables-extended.js` from the repository root. |
+| `tables-test.md` | Markdown tables to paste into a BookStack page when testing by hand. |
+| `run-version.sh` | Starts BookStack at one release, prepares it, runs the automated tests and saves screenshots. |
+| `run-all.sh` | Runs `run-version.sh` for every release in its list. |
+| `e2e.js` | The browser checks and screenshots. |
+| `fixtures.js` | Creates the test book and pages through the BookStack API. |
+| `marketing-screenshots.js` | Takes the screenshots in `assets/` that the main README shows. |
+| `package.json`, `package-lock.json` | Install Playwright. |
+
+Run Docker Compose commands from this folder, because `docker-compose.yml` is here. The shell scripts can be started from anywhere, for example `bash tests/run-version.sh version-v26.09` from the repository root.
+
+## Trying the script by hand
+
+Start BookStack from this folder, then follow the steps under [Testing with Docker](../README.md#testing-with-docker) in the main README. Paste tables from `tables-test.md` into a page to check sorting, filtering, scrolling and the editing features.
+
+```sh
+cd tests
+docker compose up -d
+```
+
+## Automated tests
+
+The automated tests are end-to-end tests that run `bookstack-tables-extended.js` in a real browser against real BookStack releases. Each run starts a fresh, disposable BookStack in Docker, installs the script, creates fixture pages, and checks sorting, filtering, scrolling and edge cases.
 
 ## Requirements
 
@@ -9,7 +37,7 @@ End-to-end tests that run `bookstack-tables-extended.js` in a real browser again
 - Bash (on Windows, Git Bash)
 - Ports 6875 free on the machine
 
-The first run installs [Playwright](https://playwright.dev) and its Chromium browser into `test/node_modules`, which is git-ignored.
+The first run installs [Playwright](https://playwright.dev) and its Chromium browser into `tests/node_modules`, which is git-ignored.
 
 ## Running the tests
 
@@ -18,19 +46,19 @@ Run these from the repository root.
 Test one BookStack release:
 
 ```sh
-bash test/run-version.sh version-v26.09
+bash tests/run-version.sh version-v26.09
 ```
 
 Test one release with the Lexical editor set as the system default:
 
 ```sh
-bash test/run-version.sh version-v26.09 lexical
+bash tests/run-version.sh version-v26.09 lexical
 ```
 
-Test every supported release (about 3 minutes each):
+Test every release in the list inside `run-all.sh` (about 3 minutes each):
 
 ```sh
-bash test/run-all.sh
+bash tests/run-all.sh
 ```
 
 The argument is an image tag from the [linuxserver/bookstack tag list](https://github.com/linuxserver/docker-bookstack/pkgs/container/bookstack), for example `version-v23.05`.
@@ -39,11 +67,11 @@ Each run prints `PASS` and `FAIL` lines and ends with `ALL PASSED` or a failure 
 
 ## Your development instance is not affected
 
-The tests run in their own Docker Compose project (`bte-test`) with separate volumes, and they remove those volumes when a run ends. The data of the instance you start with a plain `docker compose up -d` is never touched.
+The tests run in their own Docker Compose project (`bte-test`) with separate volumes, and they remove those volumes when a run ends. The data of the instance you start with a plain `docker compose up -d` from this folder is never touched.
 
 Both instances use port 6875, so a test run pauses your development instance and starts it again when the run finishes. `run-all.sh` does this once for the whole batch.
 
-To keep a prepared test instance running for manual testing, run `PREPARE_ONLY=1 bash test/run-version.sh <image-tag>`. Your development instance stays paused until you remove the test instance and start it again:
+To keep a prepared test instance running for manual testing, run `PREPARE_ONLY=1 bash tests/run-version.sh <image-tag>`. Your development instance stays paused until you remove the test instance and start it again. Run these two commands from this folder:
 
 ```sh
 docker compose -p bte-test down -v
@@ -68,20 +96,27 @@ Screenshots and the full log of each run are saved to `screenshots/<version>/` i
 
 Console errors raised on editor pages by BookStack itself (for example a Content Security Policy message on v23.05) are printed as informational and do not fail a run.
 
-## Files
+## Marketing screenshots
 
-| File             | Purpose                                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `run-version.sh` | Starts BookStack at one release, prepares it, runs the tests, saves screenshots                            |
-| `run-all.sh`     | Runs `run-version.sh` for the full list of supported releases                                             |
-| `fixtures.js`    | Creates the test book and pages through the BookStack API                                                  |
-| `e2e.js`         | The browser checks and screenshots                                                                         |
-| `package.json`   | Installs Playwright                                                                                        |
+The images in `assets/` are generated by `marketing-screenshots.js` from a small realistic dataset (a "Handbook" book that the script creates). Regenerate them when the interface changes:
+
+```sh
+cd tests
+PREPARE_ONLY=1 bash run-version.sh version-v26.09           # instance with the WYSIWYG Editor as default
+node marketing-screenshots.js viewer                         # viewing, dark mode and WYSIWYG Editor shots
+docker compose -p bte-test down -v
+PREPARE_ONLY=1 bash run-version.sh version-v26.09 lexical   # instance with the new WYSIWYG as default
+node marketing-screenshots.js lexical                        # new WYSIWYG shots
+docker compose -p bte-test down -v
+docker compose up -d                                          # start your development instance again
+```
+
+Each run overwrites the files with the same names.
 
 ## Adding a supported release
 
 1. Add its image tag to `TINYMCE_VERSIONS` in `run-all.sh`, and to `LEXICAL_VERSIONS` if it includes the Lexical editor.
-2. Run `bash test/run-version.sh <tag>` and confirm `ALL PASSED`.
+2. Run `bash tests/run-version.sh <tag>` and confirm `ALL PASSED`.
 3. Add the release to the table in the main `README.md`.
 
 ## Notes for writing tests

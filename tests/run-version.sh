@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Runs the end-to-end tests against one BookStack release.
 #
-#   bash test/run-version.sh <image-tag> [lexical]
-#   bash test/run-version.sh version-v26.09
-#   bash test/run-version.sh version-v26.09 lexical
-#   PREPARE_ONLY=1 bash test/run-version.sh version-v26.09   # leave an instance running, skip tests
+#   bash tests/run-version.sh <image-tag> [lexical]
+#   bash tests/run-version.sh version-v26.09
+#   bash tests/run-version.sh version-v26.09 lexical
+#   PREPARE_ONLY=1 bash tests/run-version.sh version-v26.09   # leave an instance running, skip tests
 #
-# Starts a fresh BookStack from ../docker-compose.yml in its own compose project ("bte-test"),
+# Starts a fresh BookStack from docker-compose.yml (in this folder) in its own compose project ("bte-test"),
 # installs the script into Custom HTML Head Content, creates fixture pages, and runs e2e.js.
 #
 # The tests never touch the data of your development instance. The development instance
@@ -34,7 +34,7 @@ if [ ! -d "$HERE/node_modules/playwright" ]; then
   (cd "$HERE" && npm install --no-audit --no-fund && npx playwright install chromium) || exit 3
 fi
 
-cd "$REPO" || exit 3
+cd "$HERE" || exit 3   # docker compose finds docker-compose.yml here
 
 # Pause the development instance (data untouched) so port 6875 is free. When BTE_DEV_PAUSED is
 # set the caller (run-all.sh) already did this and will restart it.
@@ -89,7 +89,7 @@ node fixtures.js >/dev/null || { echo "[$LABEL] creating fixtures failed"; exit 
 # PREPARE_ONLY=1 leaves the prepared instance running for manual testing, without running the tests.
 if [ -n "$PREPARE_ONLY" ]; then
   echo "[$LABEL] test instance ready at http://localhost:6875 (admin@admin.com / password); fixture book: Table Tests"
-  echo "[$LABEL] remove it with: docker compose -p bte-test down -v, then start your dev instance with: docker compose up -d"
+  echo "[$LABEL] remove it with: docker compose -p bte-test down -v, then start your dev instance with: docker compose up -d (run both from the tests folder)"
   exit 0
 fi
 

@@ -2,7 +2,7 @@
 # Runs run-version.sh for every supported BookStack release, then for Lexical mode where it exists.
 # Takes roughly 3 minutes per release. Edit the lists below when adding or removing a supported version.
 #
-#   bash test/run-all.sh
+#   bash tests/run-all.sh
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 TINYMCE_VERSIONS=(
@@ -16,7 +16,7 @@ LEXICAL_VERSIONS=(
 )
 
 # Pause the development instance once for the whole batch (its data is kept) and restore it at the end.
-cd "$HERE/.." || exit 3
+cd "$HERE" || exit 3   # docker compose finds docker-compose.yml here
 DEV_WAS_RUNNING=
 if [ -n "$(docker compose ps -q --status running 2>/dev/null)" ]; then
   DEV_WAS_RUNNING=1
