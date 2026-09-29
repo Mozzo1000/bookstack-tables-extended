@@ -19,7 +19,7 @@ A script for [BookStack](https://www.bookstackapp.com) that adds sorting, filter
 - Filter any column from a spreadsheet-style menu with a search box and a checklist of the column's values. Filters in several columns combine.
 - Export the filtered view as an Excel file with the Export current view link that appears under the table while a filter is active. The file is created in your browser.
 - Scroll wide tables sideways instead of squeezing the columns.
-- Numbers, currencies and percentages sort as numbers. Text sorts without regard to case, and empty cells sort last.
+- Numbers, currencies and percentages sort as numbers. Dates sort chronologically, recognising `YYYY-MM-DD`, day-month-year with a month name (`31 Jan 2026`, `31-Jan-2026`) or numeric (`31/01/2026`, `31.01.2026`, day first), and `Jan 31, 2026`; a column can mix formats across rows. Text sorts without regard to case, and empty cells sort last.
 - Works automatically on the tables in your pages, in light and dark mode.
 - Sorting and filtering only change what you see. The saved page is never modified, and they reset when the page reloads.
 
@@ -193,7 +193,7 @@ The tag does not affect the editing features. Use `editor.largeTables` to turn t
 - A table without a designated header row uses its first row as the header, so that row cannot be sorted or filtered as data.
 - Tables inside other tables are left alone.
 - Numbers written with a decimal comma (`1,5`) are not read as numbers.
-- Dates sort as text. Write them as `YYYY-MM-DD` if a date column needs to sort chronologically.
+- A date column sorts chronologically only when every non-empty cell in it is recognised as a date. If even one cell doesn't match a supported format, the whole column falls back to text sorting.
 - Sorting and filtering are not saved. They reset when the page is reloaded and are not part of BookStack's exports. Printing from the browser prints the table as it is currently sorted and filtered, without the filter buttons.
 - The filter search matches text only. Operators such as `>5` are not interpreted.
 - Export current view saves the rows that are visible, in the order shown, as a single Excel sheet named after the page. The link only appears while a filter is active. Plain numbers are saved as numbers. Values with a currency symbol or percent sign, leading zeros or trailing decimal zeros are saved as text, exactly as shown, and only the heading row is formatted (bold).

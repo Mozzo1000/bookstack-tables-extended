@@ -229,6 +229,52 @@
         return Number(stripped.replace(/,/g, ''));
     }
 
+    const MONTH_NAMES = {
+        jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
+        may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7,
+        sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+    };
+
+    /** Builds a timestamp from year/month/day, or null if the combination isn't a real calendar date. */
+    function makeDate(year, month, day) {
+        const d = new Date(year, month, day);
+        if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day) return null;
+        return d.getTime();
+    }
+
+    /**
+     * Returns a timestamp for date-looking text, else null. Accepts ISO (2026-01-31), day-month-year
+     * with a month name (31 Jan 2026, 31-Jan-2026) or numeric (31/01/2026, 31.01.2026), and
+     * month-day-year with a month name (Jan 31, 2026). Numeric day/month is treated as day-first.
+     */
+    function parseDate(text) {
+        const s = text.trim();
+
+        let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T\s].*)?$/);
+        if (m) return makeDate(+m[1], +m[2] - 1, +m[3]);
+
+        m = s.match(/^(\d{1,2})[\s.\-/]+([A-Za-z]{3,9})[\s.,\-/]+(\d{4})$/);
+        if (m) {
+            const month = MONTH_NAMES[m[2].toLowerCase()];
+            return month === undefined ? null : makeDate(+m[3], month, +m[1]);
+        }
+
+        m = s.match(/^([A-Za-z]{3,9})[\s.\-]+(\d{1,2}),?\s+(\d{4})$/);
+        if (m) {
+            const month = MONTH_NAMES[m[1].toLowerCase()];
+            return month === undefined ? null : makeDate(+m[3], month, +m[2]);
+        }
+
+        m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+        if (m) {
+            const day = +m[1], month = +m[2];
+            if (month > 12 || day > 31) return null;
+            return makeDate(+m[3], month - 1, day);
+        }
+
+        return null;
+    }
+
     /** Finds the header row and body rows of a table, or null if the table can't be handled. */
     function analyse(table) {
         const thead = table.tHead;
@@ -623,6 +669,13 @@
             return values.length > 0 && values.every(x => parseNumber(x) !== null);
         });
 
+        // A column is a date column when every non-empty cell parses as a date (mixed formats allowed).
+        const dateColumn = Array.from({length: columnCount}, (_, col) => {
+            if (numericColumn[col]) return false;
+            const values = rows.map(r => r.texts[col]).filter(x => x !== '');
+            return values.length > 0 && values.every(x => parseDate(x) !== null);
+        });
+
         const headerCells = rowToColumns(headerRow, columnCount);
         const filters = Array.from({length: columnCount}, () => ({text: '', selected: null}));
         const funnels = new Array(columnCount).fill(null);
@@ -640,6 +693,7 @@
                 const {col, dir} = sortState;
                 const factor = dir === 'ascending' ? 1 : -1;
                 const numeric = numericColumn[col];
+                const date = dateColumn[col];
                 ordered.sort((a, b) => {
                     const ta = a.texts[col];
                     const tb = b.texts[col];
@@ -647,7 +701,9 @@
                         // Blank cells always sort last, whatever the direction.
                         return ta === tb ? a.index - b.index : (ta === '' ? 1 : -1);
                     }
-                    const result = numeric ? parseNumber(ta) - parseNumber(tb) : collator.compare(ta, tb);
+                    const result = numeric ? parseNumber(ta) - parseNumber(tb)
+                        : date ? parseDate(ta) - parseDate(tb)
+                        : collator.compare(ta, tb);
                     return result * factor || a.index - b.index;
                 });
             } else {
