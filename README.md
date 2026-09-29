@@ -16,7 +16,7 @@ A script for [BookStack](https://www.bookstackapp.com) that adds sorting, filter
 ### Viewing a page
 
 - Sort any column. Select a heading to sort ascending, again for descending, and a third time for the original order.
-- Filter any column from a spreadsheet-style menu with a search box and a checklist of the column's values. Filters in several columns combine.
+- Filter any column from a spreadsheet-style menu with a search box and a checklist of the column's values. Filters in several columns combine. Date columns group their checklist into a collapsible year and month tree, so picking a specific year or month is a couple of clicks instead of scanning a long flat list.
 - Hide a column from its filter menu to get it out of the way temporarily. A Show all columns link appears under the table while any column is hidden.
 - Export the filtered view as an Excel file with the Export current view link that appears under the table while a filter is active. Hidden columns are left out. The file is created in your browser.
 - Scroll wide tables sideways instead of squeezing the columns.
@@ -40,6 +40,10 @@ Select a heading to sort. The arrow shows the direction, and the funnel opens th
 The funnel is highlighted while a filter is active. A line under the table shows how many rows match, with links to clear all filters and to export the current view as an Excel file.
 
 ![The product table filtered to low stock and sold out products, with the row count line under it](assets/filter-active.png)
+
+Date columns group their checklist into a collapsible year and month tree, so picking a specific year or month takes a couple of clicks instead of scrolling through every date.
+
+![The filter menu on a delivery date column, with 2027 expanded into months and individual dates](assets/filter-date-groups.png)
 
 ### Horizontal scroll
 

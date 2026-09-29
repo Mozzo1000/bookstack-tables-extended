@@ -137,11 +137,16 @@
     background: transparent; border: 1px solid rgba(128, 128, 128, .6); border-radius: 4px;
 }
 .bte-list { overflow-y: auto; display: flex; flex-direction: column; }
-.bte-list label { display: flex; gap: 6px; align-items: center; padding: 3px 4px; cursor: pointer; border-radius: 3px; }
-.bte-list label:hover { background: rgba(128, 128, 128, .18); }
+.bte-list label, .bte-list .bte-group-row { display: flex; gap: 6px; align-items: center; padding: 3px 4px; cursor: pointer; border-radius: 3px; }
+.bte-list label:hover, .bte-list .bte-group-row:hover { background: rgba(128, 128, 128, .18); }
 .bte-list input { margin: 0; }
 .bte-list .bte-val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bte-list .bte-count { opacity: .6; font-size: .85em; }
+.bte-toggle {
+    flex: none; width: 16px; padding: 0; font: inherit; font-size: .75em; line-height: 1; text-align: center;
+    color: inherit; background: none; border: 0; cursor: pointer; opacity: .7;
+}
+.bte-toggle:hover { opacity: 1; }
 .bte-empty { padding: 4px 6px; opacity: .7; }
 /* TinyMCE's skin resets buttons with a more specific selector, so this one is qualified with .tox. */
 .bte-advanced, .tox button.bte-advanced {
@@ -246,6 +251,10 @@
         may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7,
         sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
     };
+    const MONTH_LABELS = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December',
+    ];
 
     /** Builds a timestamp from year/month/day, or null if the combination isn't a real calendar date. */
     function makeDate(year, month, day) {
@@ -285,6 +294,34 @@
         }
 
         return null;
+    }
+
+    /** Groups a date column's filter values into a year -> month -> day-values tree, blanks kept aside. */
+    function buildDateTree(values) {
+        const years = new Map();
+        const blanks = [];
+        for (const v of values) {
+            if (v.value === '') { blanks.push(v); continue; }
+            const d = new Date(parseDate(v.value));
+            const year = d.getFullYear();
+            const month = d.getMonth();
+            if (!years.has(year)) years.set(year, new Map());
+            const months = years.get(year);
+            if (!months.has(month)) months.set(month, []);
+            months.get(month).push(v);
+        }
+        const tree = Array.from(years.keys()).sort((a, b) => a - b).map(year => {
+            const months = years.get(year);
+            return {
+                year,
+                items: Array.from(months.values()).flat(),
+                months: Array.from(months.keys()).sort((a, b) => a - b).map(month => ({
+                    month,
+                    items: months.get(month),
+                })),
+            };
+        });
+        return {tree, blanks};
     }
 
     /** Finds the header row and body rows of a table, or null if the table can't be handled. */
@@ -361,10 +398,82 @@
         const clear = el('button', {type: 'button', className: 'bte-item', textContent: t.clearFilter});
 
         let renderedCount = config.maxListValues;
+        let collapsed = null; // Set of "y:<year>" / "y:<year>:m:<month>" keys, built on first date-tree render.
         const isChecked = value => filter.selected === null || filter.selected.has(value);
         const visibleValues = () => {
             const needle = search.value.trim().toLowerCase();
             return column.values.filter(v => needle === '' || v.value.toLowerCase().includes(needle));
+        };
+        const groupState = items => {
+            if (filter.selected === null) return {checked: true, indeterminate: false};
+            const checkedCount = items.filter(v => filter.selected.has(v.value)).length;
+            return {checked: checkedCount === items.length && items.length > 0, indeterminate: checkedCount > 0 && checkedCount < items.length};
+        };
+        const setGroupChecked = (items, checked) => {
+            const selected = filter.selected === null ? new Set(column.values.map(v => v.value)) : filter.selected;
+            for (const v of items) {
+                if (checked) selected.add(v.value); else selected.delete(v.value);
+            }
+            filter.selected = selected.size === column.values.length ? null : selected;
+            column.onChange();
+            renderList();
+        };
+        const appendLeaf = (v, indentLevel) => {
+            const box = el('input', {type: 'checkbox'});
+            box.checked = isChecked(v.value);
+            box.addEventListener('change', () => {
+                const selected = filter.selected === null ? new Set(column.values.map(x => x.value)) : filter.selected;
+                if (box.checked) selected.add(v.value); else selected.delete(v.value);
+                filter.selected = selected.size === column.values.length ? null : selected;
+                column.onChange();
+                renderList();
+            });
+            const label = el('label', {style: indentLevel ? `padding-left:${8 + indentLevel * 18}px` : ''}, [
+                box,
+                el('span', {className: 'bte-val', textContent: v.label, title: v.label}),
+                el('span', {className: 'bte-count', textContent: String(v.count)}),
+            ]);
+            list.append(label);
+        };
+        const appendGroup = (label, items, indentLevel, key) => {
+            const isCollapsed = collapsed.has(key);
+            const toggle = el('button', {
+                type: 'button', className: 'bte-toggle', textContent: isCollapsed ? '▶' : '▼',
+            });
+            toggle.addEventListener('click', () => {
+                if (isCollapsed) collapsed.delete(key); else collapsed.add(key);
+                renderList();
+            });
+            const box = el('input', {type: 'checkbox'});
+            const state = groupState(items);
+            box.checked = state.checked;
+            box.indeterminate = state.indeterminate;
+            box.addEventListener('change', () => setGroupChecked(items, box.checked));
+            const count = items.reduce((sum, v) => sum + v.count, 0);
+            const row = el('div', {className: 'bte-group-row', style: `padding-left:${indentLevel * 18}px`}, [
+                toggle, box,
+                el('span', {className: 'bte-val', textContent: label}),
+                el('span', {className: 'bte-count', textContent: String(count)}),
+            ]);
+            list.append(row);
+            return isCollapsed;
+        };
+
+        const renderDateTree = visible => {
+            const {tree, blanks} = buildDateTree(visible);
+            if (collapsed === null) collapsed = new Set(tree.map(g => 'y:' + g.year));
+            for (const yearGroup of tree) {
+                const yearKey = 'y:' + yearGroup.year;
+                const yearCollapsed = appendGroup(String(yearGroup.year), yearGroup.items, 0, yearKey);
+                if (yearCollapsed) continue;
+                for (const monthGroup of yearGroup.months) {
+                    const monthKey = yearKey + ':m:' + monthGroup.month;
+                    const monthCollapsed = appendGroup(MONTH_LABELS[monthGroup.month], monthGroup.items, 1, monthKey);
+                    if (monthCollapsed) continue;
+                    for (const v of monthGroup.items) appendLeaf(v, 2);
+                }
+            }
+            for (const v of blanks) appendLeaf(v, 0);
         };
 
         const renderList = () => {
@@ -391,25 +500,17 @@
                 renderList();
             });
             list.append(el('label', {}, [all, el('span', {className: 'bte-val', textContent: t.selectAll})]));
+
+            // Dates are grouped into a collapsible year/month tree, unless a search narrows the list, in
+            // which case a flat, batched list of matches is clearer.
+            if (column.isDate && search.value.trim() === '') {
+                renderDateTree(visible);
+                return;
+            }
+
             // Only a batch of the (possibly very long) list is rendered at a time, to stay responsive.
             const shown = visible.slice(0, renderedCount);
-            for (const v of shown) {
-                const box = el('input', {type: 'checkbox'});
-                box.checked = isChecked(v.value);
-                box.addEventListener('change', () => {
-                    const selected = filter.selected === null ? new Set(column.values.map(x => x.value)) : filter.selected;
-                    if (box.checked) selected.add(v.value); else selected.delete(v.value);
-                    filter.selected = selected.size === column.values.length ? null : selected;
-                    column.onChange();
-                    syncAll();
-                });
-                const label = el('label', {}, [
-                    box,
-                    el('span', {className: 'bte-val', textContent: v.label, title: v.label}),
-                    el('span', {className: 'bte-count', textContent: String(v.count)}),
-                ]);
-                list.append(label);
-            }
+            for (const v of shown) appendLeaf(v, 0);
             if (visible.length > shown.length) {
                 const loadMore = el('button', {
                     type: 'button', className: 'bte-item',
@@ -851,12 +952,13 @@
                     }));
                     values.sort((a, b) => {
                         if (a.value === '' || b.value === '') return a.value === '' ? 1 : -1;
-                        return collator.compare(a.value, b.value);
+                        return dateColumn[col] ? parseDate(a.value) - parseDate(b.value) : collator.compare(a.value, b.value);
                     });
                     showPopover(button, {
                         index: col,
                         name,
                         values,
+                        isDate: dateColumn[col],
                         filter: filters[col],
                         surface: cell,
                         onChange: applyFilters,
