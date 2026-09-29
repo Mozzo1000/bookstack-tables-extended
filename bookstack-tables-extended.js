@@ -65,6 +65,8 @@
             noValues: 'No matching values',
             clearFilter: 'Clear filter',
             clear: 'Clear filters',
+            hideColumn: 'Hide column',
+            showColumns: 'Show all columns',
             loadMore: remaining => `Load more (${remaining} left)`,
             exportView: 'Export current view',
             showing: (shown, total) => `Showing ${shown} of ${total} rows`,
@@ -333,7 +335,7 @@
 
     /**
      * Opens the filter popover for one column.
-     * `column` is {index, name, values: [{value, label, count}], filter: {text, selected}, surface, onChange, onSort}
+     * `column` is {index, name, values: [{value, label, count}], filter: {text, selected}, surface, onChange, onSort, onHide}
      */
     function showPopover(button, column) {
         closePopover(false);
@@ -351,8 +353,10 @@
 
         const sortAsc = el('button', {type: 'button', className: 'bte-item', textContent: t.sortAscending});
         const sortDesc = el('button', {type: 'button', className: 'bte-item', textContent: t.sortDescending});
+        const hideColumn = el('button', {type: 'button', className: 'bte-item', textContent: t.hideColumn});
         sortAsc.addEventListener('click', () => { column.onSort('ascending'); closePopover(true); });
         sortDesc.addEventListener('click', () => { column.onSort('descending'); closePopover(true); });
+        hideColumn.addEventListener('click', () => { column.onHide(); closePopover(true); });
 
         const clear = el('button', {type: 'button', className: 'bte-item', textContent: t.clearFilter});
 
@@ -435,7 +439,7 @@
             search.focus();
         });
 
-        node.append(sortAsc, sortDesc, el('hr'), search, list, el('hr'), clear);
+        node.append(sortAsc, sortDesc, hideColumn, el('hr'), search, list, el('hr'), clear);
         renderList();
 
         document.body.appendChild(node);
@@ -685,7 +689,7 @@
         const rows = bodyRows.map((tr, index) => {
             const cells = rowToColumns(tr, columnCount);
             const texts = cells.map(cellText);
-            return {tr, texts, lower: texts.map(x => x.toLowerCase()), index};
+            return {tr, cells, texts, lower: texts.map(x => x.toLowerCase()), index};
         });
 
         // A column is numeric when every non-empty cell parses as a number.
@@ -705,10 +709,27 @@
         headerCells.forEach(cell => { if (cell) cell.classList.add('bte-head'); });
         const filters = Array.from({length: columnCount}, () => ({text: '', selected: null}));
         const funnels = new Array(columnCount).fill(null);
+        const hiddenColumns = new Set();
         let sortState = {col: -1, dir: 'none'};
         let status = null;
         let statusText = null;
+        let clearButton = null;
         let exportButton = null;
+        let showAllButton = null;
+
+        function setColumnHidden(col, isHidden) {
+            if (isHidden) hiddenColumns.add(col); else hiddenColumns.delete(col);
+            if (headerCells[col]) headerCells[col].classList.toggle('bte-hidden', isHidden);
+            for (const row of rows) {
+                if (row.cells[col]) row.cells[col].classList.toggle('bte-hidden', isHidden);
+            }
+            if (showAllButton) showAllButton.hidden = hiddenColumns.size === 0;
+            updateStatusVisibility();
+        }
+
+        function updateStatusVisibility() {
+            if (status) status.hidden = !filters.some(isActive) && hiddenColumns.size === 0;
+        }
 
         const parent = rows[0].tr.parentNode;
         let currentOrder = rows.slice();
@@ -757,8 +778,9 @@
                 if (funnels[col]) funnels[col].classList.toggle('bte-active', isActive(f));
             });
             if (status) {
-                status.hidden = !filters.some(isActive);
+                updateStatusVisibility();
                 statusText.textContent = shown === 0 ? t.noMatches : t.showing(shown, rows.length);
+                clearButton.hidden = !filters.some(isActive);
                 if (exportButton) exportButton.hidden = shown === 0;
             }
         }
@@ -839,6 +861,7 @@
                         surface: cell,
                         onChange: applyFilters,
                         onSort: dir => setSort(col, dir),
+                        onHide: () => setColumnHidden(col, true),
                     });
                 });
                 cell.appendChild(button);
@@ -848,20 +871,28 @@
             status.setAttribute('role', 'status');
             status.hidden = true;
             statusText = el('span');
-            const clear = el('button', {type: 'button', className: 'bte-clear', textContent: t.clear});
-            clear.addEventListener('click', () => {
+            clearButton = el('button', {type: 'button', className: 'bte-clear', textContent: t.clear});
+            clearButton.hidden = true;
+            clearButton.addEventListener('click', () => {
                 for (const f of filters) {
                     f.text = '';
                     f.selected = null;
                 }
                 applyFilters();
             });
-            status.append(statusText, clear);
+            showAllButton = el('button', {type: 'button', className: 'bte-clear', textContent: t.showColumns});
+            showAllButton.hidden = true;
+            showAllButton.addEventListener('click', () => {
+                for (const col of [...hiddenColumns]) setColumnHidden(col, false);
+            });
+            status.append(statusText, clearButton, showAllButton);
             if (config.export) {
                 exportButton = el('button', {type: 'button', className: 'bte-clear bte-export', textContent: t.exportView});
                 exportButton.addEventListener('click', () => {
+                    const cols = headerCells.map((c, i) => i).filter(i => !hiddenColumns.has(i));
+                    const header = cols.map(i => cellText(headerCells[i]));
                     const visible = currentOrder.filter(row => !row.tr.classList.contains('bte-hidden'));
-                    exportCurrentView(table, headerCells.map(cellText), visible.map(row => row.texts));
+                    exportCurrentView(table, header, visible.map(row => cols.map(i => row.texts[i])));
                 });
                 status.append(exportButton);
             }

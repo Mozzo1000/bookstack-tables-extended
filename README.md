@@ -17,7 +17,8 @@ A script for [BookStack](https://www.bookstackapp.com) that adds sorting, filter
 
 - Sort any column. Select a heading to sort ascending, again for descending, and a third time for the original order.
 - Filter any column from a spreadsheet-style menu with a search box and a checklist of the column's values. Filters in several columns combine.
-- Export the filtered view as an Excel file with the Export current view link that appears under the table while a filter is active. The file is created in your browser.
+- Hide a column from its filter menu to get it out of the way temporarily. A Show all columns link appears under the table while any column is hidden.
+- Export the filtered view as an Excel file with the Export current view link that appears under the table while a filter is active. Hidden columns are left out. The file is created in your browser.
 - Scroll wide tables sideways instead of squeezing the columns.
 - Numbers, currencies and percentages sort as numbers. Dates sort chronologically, recognising `YYYY-MM-DD`, day-month-year with a month name (`31 Jan 2026`, `31-Jan-2026`) or numeric (`31/01/2026`, `31.01.2026`, day first), and `Jan 31, 2026`; a column can mix formats across rows. Text sorts without regard to case, and empty cells sort last.
 - Works automatically on the tables in your pages, in light and dark mode.
@@ -162,7 +163,7 @@ To change a default, define `window.BookStackTablesExtended` in a `<script>` tag
 
 Set `editor: {largeTables: false}` to leave both editors exactly as BookStack ships them.
 
-The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`, `search`, `selectAll`, `blanks`, `noValues`, `clearFilter`, `clear`, `loadMore(remaining)`, `exportView`, `showing(shown, total)`, `noMatches`, `advanced`, `removeContent`, `yes`, `no`, `updating`, `insertTable`, `columns`, `rows`, `insert` and `cancel`. Any key you leave out keeps its English text. Example of translating part of the interface:
+The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`, `search`, `selectAll`, `blanks`, `noValues`, `clearFilter`, `clear`, `hideColumn`, `showColumns`, `loadMore(remaining)`, `exportView`, `showing(shown, total)`, `noMatches`, `advanced`, `removeContent`, `yes`, `no`, `updating`, `insertTable`, `columns`, `rows`, `insert` and `cancel`. Any key you leave out keeps its English text. Example of translating part of the interface:
 
 ```html
 <script>
@@ -196,8 +197,9 @@ These tags do not affect the editing features. Use `editor.largeTables` to turn 
 - Tables inside other tables are left alone.
 - Numbers written with a decimal comma (`1,5`) are not read as numbers.
 - A date column sorts chronologically only when every non-empty cell in it is recognised as a date. If even one cell doesn't match a supported format, the whole column falls back to text sorting.
-- Sorting and filtering are not saved. They reset when the page is reloaded and are not part of BookStack's exports. Printing from the browser prints the table as it is currently sorted and filtered, without the filter buttons.
+- Sorting, filtering and hidden columns are not saved. They reset when the page is reloaded and are not part of BookStack's exports. Printing from the browser prints the table as it is currently sorted, filtered and hidden, without the filter buttons.
 - The filter search matches text only. Operators such as `>5` are not interpreted.
+- Hiding a column that a `colspan` cell shares with other columns only hides that cell where it's the column's own cell; the shared cell stays visible for the columns it still covers.
 - Export current view saves the rows that are visible, in the order shown, as a single Excel sheet named after the page. The link only appears while a filter is active. Plain numbers are saved as numbers. Values with a currency symbol or percent sign, leading zeros or trailing decimal zeros are saved as text, exactly as shown, and only the heading row is formatted (bold).
 - Tables that are added to the page after it has loaded are not enhanced.
 - Changing **Cols** or **Rows** in table properties always works from the end of the table. To remove a column or row in the middle, use the editor's own delete column and delete row actions.
