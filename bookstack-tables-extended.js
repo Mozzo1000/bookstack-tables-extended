@@ -89,8 +89,10 @@
 .bte-sortable:focus-visible, .bte-fbtn:focus-visible, .bte-clear:focus-visible {
     outline: 2px solid var(--color-primary, #206ea7); outline-offset: -2px;
 }
-.bte-ind { display: inline-block; margin-left: .4em; font-size: .75em; opacity: .35; }
+.bte-head { white-space: nowrap; }
+.bte-ind { display: inline-block; margin-left: .4em; font-size: .95em; opacity: .5; vertical-align: middle; }
 .bte-ind::after { content: "\\2195"; }
+.bte-sortable:hover > .bte-ind { opacity: 1; }
 [aria-sort="ascending"] > .bte-ind, [aria-sort="descending"] > .bte-ind { opacity: 1; color: var(--color-primary, #206ea7); }
 [aria-sort="ascending"] > .bte-ind::after { content: "\\25B2"; }
 [aria-sort="descending"] > .bte-ind::after { content: "\\25BC"; }
@@ -100,7 +102,7 @@
 }
 .bte-fbtn:hover, .bte-fbtn[aria-expanded="true"] { opacity: 1; }
 .bte-fbtn.bte-active { opacity: 1; color: var(--color-primary, #206ea7); }
-.bte-fbtn svg { display: block; width: 12px; height: 12px; fill: currentColor; }
+.bte-fbtn svg { display: block; width: 16px; height: 16px; fill: currentColor; }
 .bte-hidden { display: none !important; }
 .bte-status { display: flex; gap: .75em; align-items: center; margin: .35em 0 1em; font-size: .85em; opacity: .85; }
 /* Author display rules override the browser default for the hidden attribute, so restore it. */
@@ -189,6 +191,17 @@
             node.append(child);
         }
         return node;
+    }
+
+    /** Natural (nowrap) width a header cell's text and icons need, measured off-screen. */
+    function measureHeaderWidth(cell) {
+        const clone = cell.cloneNode(true);
+        clone.style.cssText = 'position: absolute; visibility: hidden; display: table-cell; '
+            + 'white-space: nowrap; width: auto; min-width: 0; max-width: none;';
+        document.body.appendChild(clone);
+        const width = clone.getBoundingClientRect().width;
+        clone.remove();
+        return width;
     }
 
     /* ---------------------------------------------------------------------------------------
@@ -677,6 +690,7 @@
         });
 
         const headerCells = rowToColumns(headerRow, columnCount);
+        headerCells.forEach(cell => { if (cell) cell.classList.add('bte-head'); });
         const filters = Array.from({length: columnCount}, () => ({text: '', selected: null}));
         const funnels = new Array(columnCount).fill(null);
         let sortState = {col: -1, dir: 'none'};
@@ -841,6 +855,12 @@
             }
             wrapper.after(status);
         }
+
+        // Widen each column enough that its header text and icons never wrap onto a second line.
+        headerCells.forEach(cell => {
+            if (!cell) return;
+            cell.style.minWidth = Math.ceil(measureHeaderWidth(cell)) + 'px';
+        });
     }
 
     function enhanceTable(table) {
