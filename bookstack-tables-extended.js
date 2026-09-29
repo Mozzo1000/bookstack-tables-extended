@@ -41,8 +41,9 @@
         // Same idea, but turns off only sorting or only filtering for the page, leaving the other on.
         disableSortBodyClasses: ['tag-pair-tablesextendedsort-off', 'tag-name-tablesextendedsortoff'],
         disableFilterBodyClasses: ['tag-pair-tablesextendedfilter-off', 'tag-name-tablesextendedfilteroff'],
-        // Columns with more distinct values than this show the search box only, without a checklist.
-        maxListValues: 200,
+        // The checklist in a column's filter menu is built in batches of this size, with a
+        // "Load more" button for the rest, so columns with many distinct values stay responsive.
+        maxListValues: 300,
         // Show "Export current view" next to "Clear filters" while a filter is active.
         export: true,
         ...userConfig,
@@ -64,6 +65,7 @@
             noValues: 'No matching values',
             clearFilter: 'Clear filter',
             clear: 'Clear filters',
+            loadMore: remaining => `Load more (${remaining} left)`,
             exportView: 'Export current view',
             showing: (shown, total) => `Showing ${shown} of ${total} rows`,
             noMatches: 'No matching rows',
@@ -353,8 +355,8 @@
         sortDesc.addEventListener('click', () => { column.onSort('descending'); closePopover(true); });
 
         const clear = el('button', {type: 'button', className: 'bte-item', textContent: t.clearFilter});
-        const useList = column.values.length > 0 && column.values.length <= config.maxListValues;
 
+        let renderedCount = config.maxListValues;
         const isChecked = value => filter.selected === null || filter.selected.has(value);
         const visibleValues = () => {
             const needle = search.value.trim().toLowerCase();
@@ -363,7 +365,6 @@
 
         const renderList = () => {
             list.textContent = '';
-            if (!useList) return;
             const visible = visibleValues();
             if (visible.length === 0) {
                 list.append(el('div', {className: 'bte-empty', textContent: t.noValues}));
@@ -386,7 +387,9 @@
                 renderList();
             });
             list.append(el('label', {}, [all, el('span', {className: 'bte-val', textContent: t.selectAll})]));
-            for (const v of visible) {
+            // Only a batch of the (possibly very long) list is rendered at a time, to stay responsive.
+            const shown = visible.slice(0, renderedCount);
+            for (const v of shown) {
                 const box = el('input', {type: 'checkbox'});
                 box.checked = isChecked(v.value);
                 box.addEventListener('change', () => {
@@ -403,10 +406,22 @@
                 ]);
                 list.append(label);
             }
+            if (visible.length > shown.length) {
+                const loadMore = el('button', {
+                    type: 'button', className: 'bte-item',
+                    textContent: t.loadMore(visible.length - shown.length),
+                });
+                loadMore.addEventListener('click', () => {
+                    renderedCount += config.maxListValues;
+                    renderList();
+                });
+                list.append(loadMore);
+            }
         };
 
         search.addEventListener('input', () => {
             filter.text = search.value.trim().toLowerCase();
+            renderedCount = config.maxListValues;
             column.onChange();
             renderList();
         });
@@ -414,14 +429,13 @@
             filter.text = '';
             filter.selected = null;
             search.value = '';
+            renderedCount = config.maxListValues;
             column.onChange();
             renderList();
             search.focus();
         });
 
-        node.append(sortAsc, sortDesc, el('hr'), search);
-        if (useList) node.append(list);
-        node.append(el('hr'), clear);
+        node.append(sortAsc, sortDesc, el('hr'), search, list, el('hr'), clear);
         renderList();
 
         document.body.appendChild(node);

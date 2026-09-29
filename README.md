@@ -152,7 +152,7 @@ To change a default, define `window.BookStackTablesExtended` in a `<script>` tag
 | `scroll`              | `true`                          | Turns horizontal scrolling on or off.                                                        |
 | `minColumnWidth`      | `120`                           | Minimum column width in pixels before a table scrolls sideways.                              |
 | `minRows`             | `2`                             | Tables with fewer body rows get horizontal scrolling only, without sorting or filtering.     |
-| `maxListValues`       | `200`                           | A column with more distinct values than this shows the search box without the checklist.     |
+| `maxListValues`       | `300`                           | Batch size for a column's filter checklist. A Load more button appends the next batch.       |
 | `export`              | `true`                          | Shows the Export current view link next to Clear filters while a filter is active.           |
 | `skipSelector`        | `'.bte-skip, [data-bte="off"]'` | CSS selector for tables that are left completely alone.                                      |
 | `editor.largeTables`  | `true`                          | Turns the larger table support in the editors on or off.                                     |
@@ -162,7 +162,7 @@ To change a default, define `window.BookStackTablesExtended` in a `<script>` tag
 
 Set `editor: {largeTables: false}` to leave both editors exactly as BookStack ships them.
 
-The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`, `search`, `selectAll`, `blanks`, `noValues`, `clearFilter`, `clear`, `exportView`, `showing(shown, total)`, `noMatches`, `advanced`, `removeContent`, `yes`, `no`, `updating`, `insertTable`, `columns`, `rows`, `insert` and `cancel`. Any key you leave out keeps its English text. Example of translating part of the interface:
+The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`, `search`, `selectAll`, `blanks`, `noValues`, `clearFilter`, `clear`, `loadMore(remaining)`, `exportView`, `showing(shown, total)`, `noMatches`, `advanced`, `removeContent`, `yes`, `no`, `updating`, `insertTable`, `columns`, `rows`, `insert` and `cancel`. Any key you leave out keeps its English text. Example of translating part of the interface:
 
 ```html
 <script>
