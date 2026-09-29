@@ -38,6 +38,9 @@
         // tag "tablesextended" with value "off" => "tag-pair-tablesextended-off",
         // tag "tablesextendedoff" with no value => "tag-name-tablesextendedoff".
         disableBodyClasses: ['tag-pair-tablesextended-off', 'tag-name-tablesextendedoff'],
+        // Same idea, but turns off only sorting or only filtering for the page, leaving the other on.
+        disableSortBodyClasses: ['tag-pair-tablesextendedsort-off', 'tag-name-tablesextendedsortoff'],
+        disableFilterBodyClasses: ['tag-pair-tablesextendedfilter-off', 'tag-name-tablesextendedfilteroff'],
         // Columns with more distinct values than this show the search box only, without a checklist.
         maxListValues: 200,
         // Show "Export current view" next to "Clear filters" while a filter is active.
@@ -890,6 +893,8 @@
 
     function runViewer() {
         if (config.disableBodyClasses.some(cls => document.body.classList.contains(cls))) return;
+        if (config.disableSortBodyClasses.some(cls => document.body.classList.contains(cls))) config.sort = false;
+        if (config.disableFilterBodyClasses.some(cls => document.body.classList.contains(cls))) config.filter = false;
         const tables = document.querySelectorAll('.page-content table');
         if (tables.length === 0) return;
         injectStyles();

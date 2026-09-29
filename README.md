@@ -184,7 +184,9 @@ The keys of `labels` are `filterColumn(name)`, `sortAscending`, `sortDescending`
 
 Add a [tag](https://www.bookstackapp.com/docs/user/tags/) to the page with the name `tablesextended` and the value `off`. The script leaves every table on that page alone when the page is viewed. A tag named `tablesextendedoff` with no value has the same effect.
 
-The tag does not affect the editing features. Use `editor.largeTables` to turn those off.
+To turn off only sorting or only filtering for a page, leaving the other on, use the same pattern with `tablesextendedsort` / `tablesextendedsortoff` or `tablesextendedfilter` / `tablesextendedfilteroff`. Horizontal scrolling and export are not affected by these tags.
+
+These tags do not affect the editing features. Use `editor.largeTables` to turn those off.
 
 ## Known limitations
 
