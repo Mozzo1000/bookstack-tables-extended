@@ -1,0 +1,28 @@
+{
+  "name": "bookstack-tables-extended",
+  "version": "1.0.0",
+  "description": "A script for [BookStack](https://www.bookstackapp.com) that adds sorting, filtering to tables and lets editors create tables with more than 10 columns.",
+  "main": "bookstack-tables-extended.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mozzo1000/bookstack-tables-extended.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Mozzo1000/bookstack-tables-extended/issues"
+  },
+  "homepage": "https://github.com/Mozzo1000/bookstack-tables-extended#readme",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

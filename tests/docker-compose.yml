@@ -38,7 +38,7 @@ services:
       # The script is served from the web root, so the Custom HTML Head Content
       # only needs: <script src="/bookstack-tables-extended.js"></script>
       # Edits to the file apply on the next page load (hard refresh to bypass cache).
-      - ../bookstack-tables-extended.js:/app/www/public/bookstack-tables-extended.js:ro
+      - ../dist/bookstack-tables-extended.min.js:/app/www/public/bookstack-tables-extended.js:ro
     ports:
       - "6875:80"
     depends_on:

@@ -1,0 +1,15 @@
+/*!
+ * BookStack Tables Extended
+ *
+ * Viewing a page: adds column sorting, Excel-style column filters and horizontal scrolling to
+ * tables, and can export the filtered view as an Excel file. Saved page content is never modified.
+ * Editing a page: lets the editor create tables with more than 10 columns (configurable) and change the
+ * number of columns and rows of an existing table from its properties dialog (both editors).
+ *
+ * Install: Settings > Customization > Custom HTML Head Content
+ *   <script src="/bookstack-tables-extended.js"></script>
+ * or paste this file's contents between <script> and </script> tags.
+ *
+ * Optional configuration, defined in a <script> tag placed BEFORE this one:
+ *   window.BookStackTablesExtended = { minColumnWidth: 160, editor: { maxColumns: 30 } };
+ */
