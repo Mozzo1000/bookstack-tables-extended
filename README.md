@@ -124,11 +124,29 @@ The features for the new WYSIWYG need BookStack v25.12 or later. See [Supported 
 
 ## Installation
 
+### Build the script
+
+The script is bundled from the files in `src`. You need [Node.js](https://nodejs.org) and npm.
+
+```sh
+npm install
+npm run build
+```
+
+The build writes two files to the `dist` folder:
+
+- `dist/bookstack-tables-extended.min.js` is the minified script. Use this one in BookStack.
+- `dist/bookstack-tables-extended.js` is the unminified script, useful for debugging.
+
+Run `npm run watch` to rebuild automatically while you edit files in `src`.
+
+### Add it to BookStack
+
 1. Sign in to BookStack as an administrator.
 2. Go to **Settings > Customization**.
 3. In **Custom HTML Head Content**, add the script using one of these methods:
-   - **Paste it.** Open `bookstack-tables-extended.js`, copy the whole file, and paste it between `<script>` and `</script>` tags.
-   - **Serve it.** Copy `bookstack-tables-extended.js` into BookStack's `public` folder and add `<script src="/bookstack-tables-extended.js"></script>`.
+   - **Paste it.** Open `dist/bookstack-tables-extended.min.js`, copy the whole file, and paste it between `<script>` and `</script>` tags.
+   - **Serve it.** Copy `dist/bookstack-tables-extended.min.js` into BookStack's `public` folder as `bookstack-tables-extended.js` and add `<script src="/bookstack-tables-extended.js"></script>`.
 4. Save the settings and reload a page that contains a table.
 
 Custom HTML Head Content is not applied on the Settings pages, so check the result on a normal page.
@@ -229,7 +247,7 @@ docker compose up -d
 2. Go to **Settings > Customization** and set **Custom HTML Head Content** to `<script src="/bookstack-tables-extended.js"></script>`.
 3. Create a page with a table and view it. The file `tests/tables-test.md` contains ready-made Markdown tables to paste into a page.
 
-The container reads `bookstack-tables-extended.js` directly from the repository root, so edits apply the next time a page loads (hard-refresh to bypass the browser cache).
+The container reads `dist/bookstack-tables-extended.min.js`, so [build the script](#build-the-script) first. Keep `npm run watch` running while you edit, and changes apply the next time a page loads (hard-refresh to bypass the browser cache).
 
 To test a specific BookStack release, set `BOOKSTACK_VERSION` to an image tag from the [linuxserver/bookstack tag list](https://github.com/linuxserver/docker-bookstack/pkgs/container/bookstack):
 

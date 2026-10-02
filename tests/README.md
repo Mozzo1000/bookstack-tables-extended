@@ -6,7 +6,7 @@ Everything for developing and testing the script is in this folder: a Docker set
 
 | File | Purpose |
 | ---- | ------- |
-| `docker-compose.yml` | Starts BookStack and its database for trying the script by hand. It serves `bookstack-tables-extended.js` from the repository root. |
+| `docker-compose.yml` | Starts BookStack and its database for trying the script by hand. It serves the built `dist/bookstack-tables-extended.min.js`. |
 | `tables-test.md` | Markdown tables to paste into a BookStack page when testing by hand. |
 | `run-version.sh` | Starts BookStack at one release, prepares it, runs the automated tests and saves screenshots. |
 | `run-all.sh` | Runs `run-version.sh` for every release in its list. |
@@ -19,21 +19,23 @@ Run Docker Compose commands from this folder, because `docker-compose.yml` is he
 
 ## Trying the script by hand
 
-Start BookStack from this folder, then follow the steps under [Testing with Docker](../README.md#testing-with-docker) in the main README. Paste tables from `tables-test.md` into a page to check sorting, filtering, scrolling and the editing features.
+[Build the script](../README.md#build-the-script) first, because BookStack serves the built file from `dist`. Then start BookStack from this folder and follow the steps under [Testing with Docker](../README.md#testing-with-docker) in the main README. Paste tables from `tables-test.md` into a page to check sorting, filtering, scrolling and the editing features.
 
 ```sh
+npm run build        # from the repository root
 cd tests
 docker compose up -d
 ```
 
 ## Automated tests
 
-The automated tests are end-to-end tests that run `bookstack-tables-extended.js` in a real browser against real BookStack releases. Each run starts a fresh, disposable BookStack in Docker, installs the script, creates fixture pages, and checks sorting, filtering, scrolling and edge cases.
+The automated tests are end-to-end tests that run the built script (`dist/bookstack-tables-extended.min.js`) in a real browser against real BookStack releases. Each run starts a fresh, disposable BookStack in Docker, installs the script, creates fixture pages, and checks sorting, filtering, scrolling and edge cases.
 
 ## Requirements
 
 - Docker with Docker Compose
 - Node.js 18 or later
+- The script built with `npm run build` from the repository root. The tests do not build it, so rebuild after changing anything in `src`.
 - Bash (on Windows, Git Bash)
 - Ports 6875 free on the machine
 
