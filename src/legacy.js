@@ -1,3 +1,4 @@
+import { injectStyles } from './lib/styles.js';
 (function () {
     'use strict';
 
@@ -73,98 +74,11 @@
     const EDITOR_SELECTOR = '[contenteditable], .editor-container, [component="wysiwyg-editor"], [component="markdown-editor"]';
     const collator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
 
-    const CSS = `
-.bte-scroll { overflow-x: auto; max-width: 100%; }
-.bte-scroll > table { max-width: none; table-layout: fixed; }
-.bte-scroll > table:not([style*="width"]):not([width]) { width: 100%; }
-/* Header cells are forced onto one line (see .bte-head), so let columns size to fit their
-   content instead of the fixed layout above, which ignores it and can overflow individual cells. */
-.bte-scroll > table.bte-auto { table-layout: auto; }
-.bte-sortable { cursor: pointer; user-select: none; }
-.bte-sortable:focus-visible, .bte-fbtn:focus-visible, .bte-clear:focus-visible {
-    outline: 2px solid var(--color-primary, #206ea7); outline-offset: -2px;
-}
-.bte-head { white-space: nowrap; overflow: visible; }
-.bte-ind { display: inline-block; margin-left: .4em; font-size: .95em; opacity: .5; vertical-align: middle; }
-.bte-ind::after { content: "\\2195"; }
-.bte-sortable:hover > .bte-ind { opacity: 1; }
-[aria-sort="ascending"] > .bte-ind, [aria-sort="descending"] > .bte-ind { opacity: 1; color: var(--color-primary, #206ea7); }
-[aria-sort="ascending"] > .bte-ind::after { content: "\\25B2"; }
-[aria-sort="descending"] > .bte-ind::after { content: "\\25BC"; }
-.bte-fbtn {
-    display: inline-block; margin: 0 0 0 .3em; padding: 2px; vertical-align: middle; line-height: 1;
-    color: inherit; background: none; border: 0; border-radius: 3px; opacity: .4; cursor: pointer;
-}
-.bte-fbtn:hover, .bte-fbtn[aria-expanded="true"] { opacity: 1; }
-.bte-fbtn.bte-active { opacity: 1; color: var(--color-primary, #206ea7); }
-.bte-fbtn svg { display: block; width: 16px; height: 16px; fill: currentColor; }
-.bte-hidden { display: none !important; }
-.bte-status { display: flex; gap: .75em; align-items: center; margin: .35em 0 1em; font-size: .85em; opacity: .85; }
-/* Author display rules override the browser default for the hidden attribute, so restore it. */
-.bte-status[hidden], .bte-clear[hidden] { display: none !important; }
-.bte-clear {
-    font: inherit; color: var(--color-link, var(--color-primary, #206ea7)); background: none;
-    border: 0; padding: 0; cursor: pointer; text-decoration: underline;
-}
-.bte-pop, .bte-modal {
-    box-sizing: border-box; font-size: 14px; line-height: 1.4; text-align: left; font-weight: normal;
-    border: 1px solid rgba(128, 128, 128, .55); border-radius: 6px; box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
-}
-.bte-pop { position: fixed; z-index: 10000; width: 250px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-.bte-pop button.bte-item {
-    font: inherit; color: inherit; background: none; border: 0; border-radius: 4px;
-    padding: 5px 6px; text-align: left; cursor: pointer;
-}
-.bte-pop button.bte-item:hover, .bte-pop button.bte-item:focus-visible { background: rgba(128, 128, 128, .22); outline: none; }
-.bte-pop hr { width: 100%; margin: 0; border: 0; border-top: 1px solid rgba(128, 128, 128, .4); }
-.bte-pop input[type="search"], .bte-modal input[type="number"] {
-    box-sizing: border-box; width: 100%; margin: 0; padding: 5px 7px; font: inherit; color: inherit;
-    background: transparent; border: 1px solid rgba(128, 128, 128, .6); border-radius: 4px;
-}
-.bte-list { overflow-y: auto; display: flex; flex-direction: column; }
-.bte-list label, .bte-list .bte-group-row { display: flex; gap: 6px; align-items: center; padding: 3px 4px; cursor: pointer; border-radius: 3px; }
-.bte-list label:hover, .bte-list .bte-group-row:hover { background: rgba(128, 128, 128, .18); }
-.bte-list input { margin: 0; }
-.bte-list .bte-val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bte-list .bte-count { opacity: .6; font-size: .85em; }
-.bte-toggle {
-    flex: none; width: 16px; padding: 0; font: inherit; font-size: .75em; line-height: 1; text-align: center;
-    color: inherit; background: none; border: 0; cursor: pointer; opacity: .7;
-}
-.bte-toggle:hover { opacity: 1; }
-.bte-empty { padding: 4px 6px; opacity: .7; }
-/* TinyMCE's skin resets buttons with a more specific selector, so this one is qualified with .tox. */
-.bte-advanced, .tox button.bte-advanced {
-    display: block; box-sizing: border-box; width: 100%; margin: 6px 0 0; padding: 7px 8px;
-    font: inherit; font-size: 14px; text-align: center; color: inherit; background: none;
-    border: 0; border-top: 1px solid rgba(128, 128, 128, .4); cursor: pointer;
-}
-.bte-advanced:hover, .bte-advanced:focus-visible, .tox button.bte-advanced:hover, .tox button.bte-advanced:focus-visible { background: rgba(128, 128, 128, .22); outline: none; }
-.bte-modal-backdrop { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .4); }
-.bte-modal { width: 280px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-.bte-modal label { display: flex; flex-direction: column; gap: 3px; }
-.bte-modal .bte-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-.bte-modal button {
-    font: inherit; color: inherit; padding: 6px 14px; cursor: pointer; background: transparent;
-    border: 1px solid rgba(128, 128, 128, .6); border-radius: 4px;
-}
-.bte-modal button.bte-primary { color: #fff; background: var(--color-primary, #206ea7); border-color: var(--color-primary, #206ea7); }
-@media print {
-    .bte-fbtn, .bte-status, .bte-ind { display: none !important; }
-    .bte-scroll { overflow: visible; }
-}`;
-
     const FUNNEL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18l-7 8.5V20l-4-2v-5.5z"/></svg>';
     // A small table with a plus badge, so it reads differently from the built-in table icon.
     const TABLE_SVG = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 4h14v8h-2V6H5v8h6v2H3zM9 6h2v8H9zM5 9h10v2H5zM17 14h2v3h3v2h-3v3h-2v-3h-3v-2h3z"/></svg>';
 
-    function injectStyles() {
-        if (document.getElementById('bte-styles')) return;
-        const style = document.createElement('style');
-        style.id = 'bte-styles';
-        style.textContent = CSS;
-        document.head.appendChild(style);
-    }
+    
 
     /* ---------------------------------------------------------------------------------------
      * Shared helpers
