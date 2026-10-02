@@ -1,5 +1,7 @@
 import { injectStyles } from './lib/styles.js';
 import { config } from './config.js';
+import FUNNEL_SVG from './icons/funnel.svg';
+import TABLE_SVG from './icons/table-plus.svg';
 
 (function () {
     'use strict';
@@ -11,10 +13,6 @@ import { config } from './config.js';
 
     const EDITOR_SELECTOR = '[contenteditable], .editor-container, [component="wysiwyg-editor"], [component="markdown-editor"]';
     const collator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
-
-    const FUNNEL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18l-7 8.5V20l-4-2v-5.5z"/></svg>';
-    // A small table with a plus badge, so it reads differently from the built-in table icon.
-    const TABLE_SVG = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 4h14v8h-2V6H5v8h6v2H3zM9 6h2v8H9zM5 9h10v2H5zM17 14h2v3h3v2h-3v3h-2v-3h-3v-2h3z"/></svg>';
 
     /* ---------------------------------------------------------------------------------------
      * Shared helpers
@@ -1242,7 +1240,7 @@ import { config } from './config.js';
         if (usage !== 'page-editor' || !config.editor.largeTables) return;
         const button = api.ui.createButton({
             label: config.labels.insertTable,
-            icon: TABLE_SVG.replace('<svg ', '<svg fill="currentColor" '),
+            icon: TABLE_SVG,
             action: () => openSizeDialog(api),
         });
         const toolbar = api.ui.getMainToolbar();

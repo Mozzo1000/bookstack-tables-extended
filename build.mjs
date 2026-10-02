@@ -20,6 +20,7 @@ const configs = banner => {
         format: 'iife',
         jsxFactory: 'h',
         jsxFragment: 'Fragment',
+        loader: { '.svg': 'text' },
     };
     return [
         { ...shared, banner: { js: banner }, plugins: [cssText(false)], outfile: 'dist/bookstack-tables-extended.js' },
